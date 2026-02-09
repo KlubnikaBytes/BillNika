@@ -6,6 +6,9 @@ import 'home_screen.dart';
 import 'business_steps/step_city_billing.dart';
 import '../models/business_details_model.dart';
 
+import 'package:flutter_project/widgets/app_background.dart';
+
+
 class OtpScreenArgs {
   final String mobile;
   OtpScreenArgs({required this.mobile});
@@ -99,7 +102,8 @@ class _OtpScreenState extends State<OtpScreen> {
       appBar: AppBar(
         title: const Text('Verify OTP'),
       ),
-      body: Padding(
+        body: AppBackground(
+          child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -154,6 +158,7 @@ class _OtpScreenState extends State<OtpScreen> {
           ],
         ),
       ),
+        ),
     );
   }
 }

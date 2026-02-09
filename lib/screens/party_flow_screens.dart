@@ -6,6 +6,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'create_invoice_screen.dart'; // for PartyModel & baseUrl
 
+import '../models/party_model.dart';
+
+import 'package:flutter_project/widgets/app_background.dart';
+
+
 // --------------------------------------------------
 // 1. Select Party bottom sheet
 // --------------------------------------------------
@@ -237,7 +242,28 @@ class _SelectPartySheetState extends State<SelectPartySheet>
           subtitle: Text(
             "${p.contactNumber ?? ''} • ${p.partyType ?? 'Customer'}",
           ),
-          trailing: const Icon(Icons.arrow_downward, color: Colors.green),
+          // trailing: const Icon(Icons.arrow_downward, color: Colors.green),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                "₹ ${p.openingBalance?.toStringAsFixed(0) ?? 0}",
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(width: 6),
+              Icon(
+                p.openingBalanceType == 'pay'
+                    ? Icons.arrow_upward
+                    : Icons.arrow_downward,
+                color: p.openingBalanceType == 'pay'
+                    ? Colors.red
+                    : Colors.green,
+                size: 18,
+              ),
+            ],
+          ),
+
+
         );
       },
     );
@@ -377,6 +403,20 @@ class _QuickCreatePartySheetState extends State<QuickCreatePartySheet> {
                 // BLUE TEXT ONLY
                 InkWell(
                   onTap: () async {
+                    // final party = await Navigator.push(
+                    //   context,
+                    //   MaterialPageRoute(
+                    //     builder: (_) => CreateNewPartyScreen(
+                    //       primary: primary,
+                    //       prefillName: _partyName.text.trim(),
+                    //       prefillPhone: _contactNumber.text.trim(),
+                    //     ),
+                    //   ),
+                    // );
+                    // if (party != null && mounted) {
+                    //   Navigator.pop(context, party);
+                    // }
+
                     final party = await Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -387,9 +427,13 @@ class _QuickCreatePartySheetState extends State<QuickCreatePartySheet> {
                         ),
                       ),
                     );
+
+// ✅ CLOSE ONLY THIS SHEET ONCE
                     if (party != null && mounted) {
-                      Navigator.pop(context, party);
+                      Navigator.of(context).pop(party);
                     }
+
+
                   },
                   child: Text(
                     "Add more details\nGST, Address, etc.",
@@ -456,7 +500,12 @@ class _QuickCreatePartySheetState extends State<QuickCreatePartySheet> {
         "party_name": _partyName.text.trim(),
         "contact_number": _contactNumber.text.trim(),
         "party_type": "customer",
+
+        // ✅ REQUIRED BY BACKEND
+        "opening_balance": 0,
+        "opening_balance_type": "receive",
       };
+
 
       final res = await http.post(
         Uri.parse('$baseUrl/parties'),
@@ -469,14 +518,19 @@ class _QuickCreatePartySheetState extends State<QuickCreatePartySheet> {
       );
 
       if (res.statusCode == 200 || res.statusCode == 201) {
-        final data = jsonDecode(res.body);
-        final party = PartyModel.fromJson(data['data']);
-        if (mounted) Navigator.pop(context, party);
+        final json = jsonDecode(res.body);
+        final party = PartyModel.fromJson(json['data']);
+
+        // ✅ THIS LINE IS THE FIX
+        if (mounted) {
+          Navigator.of(context).pop(party);
+        }
       }
     } finally {
       if (mounted) setState(() => _saving = false);
     }
   }
+
 }
 
 // --------------------------------------------------
@@ -527,18 +581,109 @@ class _CreateNewPartyScreenState extends State<CreateNewPartyScreen>
   String? selectedCreditLabel = "Select Days";
   int? selectedCreditDays;
 
+  String openingBalanceType = 'receive'; // default
+
+
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   if (widget.initialParty != null) {
+  //     _partyName.text = widget.initialParty!.partyName;
+  //     _contactNumber.text = widget.initialParty!.contactNumber ?? '';
+  //     partyType = widget.initialParty!.partyType ?? 'customer';
+  //   } else {
+  //     _partyName.text = widget.prefillName ?? "";
+  //     _contactNumber.text = widget.prefillPhone ?? "";
+  //   }
+  // }
+
+  // @override
+  // void initState() {
+  //   super.initState();
+  //
+  //   final p = widget.initialParty;
+  //
+  //   if (p != null) {
+  //     // BASIC
+  //     _partyName.text = p.partyName;
+  //     _contactNumber.text = p.contactNumber ?? '';
+  //     partyType = p.partyType ?? 'customer';
+  //
+  //     // GST & PAN
+  //     _gstNumber.text = p.gstNumber ?? '';
+  //     _panNumber.text = p.panNumber ?? '';
+  //
+  //     // OPENING BALANCE
+  //     _openingBalance.text = p.openingBalance?.toString() ?? '';
+  //     openingBalanceType = p.openingBalanceType ?? 'receive';
+  //
+  //     // CREDIT
+  //     selectedCreditDays = p.creditPeriodDays;
+  //     selectedCreditLabel = p.creditPeriodDays != null
+  //         ? "${p.creditPeriodDays} Days"
+  //         : "Select Days";
+  //
+  //     _creditLimit.text = p.creditLimit?.toString() ?? '';
+  //
+  //     // OTHER
+  //     _contactPersonName.text = p.contactPersonName ?? '';
+  //     _dob = p.dob;
+  //
+  //     // BILLING ADDRESS
+  //     if (p.billingStreet != null) {
+  //       billingAddress = BillingAddress(
+  //         street: p.billingStreet ?? '',
+  //         city: p.billingCity ?? '',
+  //         state: p.billingState ?? '',
+  //         pincode: p.billingPincode ?? '',
+  //       );
+  //     }
+  //   }
+  // }
   @override
   void initState() {
     super.initState();
-    if (widget.initialParty != null) {
-      _partyName.text = widget.initialParty!.partyName;
-      _contactNumber.text = widget.initialParty!.contactNumber ?? '';
-      partyType = widget.initialParty!.partyType ?? 'customer';
+
+    final p = widget.initialParty;
+
+    if (p != null) {
+      // ================= EDIT PARTY =================
+      _partyName.text = p.partyName;
+      _contactNumber.text = p.contactNumber ?? '';
+      partyType = p.partyType;
+
+      _gstNumber.text = p.gstNumber ?? '';
+      _panNumber.text = p.panNumber ?? '';
+
+      _openingBalance.text = p.openingBalance.toString();
+      openingBalanceType = p.openingBalanceType;
+
+      selectedCreditDays = p.creditPeriodDays;
+      selectedCreditLabel = p.creditPeriodDays != null
+          ? "${p.creditPeriodDays} Days"
+          : "Select Days";
+
+      _creditLimit.text = p.creditLimit?.toString() ?? '';
+      _contactPersonName.text = p.contactPersonName ?? '';
+      _dob = p.dob;
+
+      if (p.billingStreet != null) {
+        billingAddress = BillingAddress(
+          street: p.billingStreet ?? '',
+          city: p.billingCity ?? '',
+          state: p.billingState ?? '',
+          pincode: p.billingPincode ?? '',
+        );
+      }
     } else {
-      _partyName.text = widget.prefillName ?? "";
-      _contactNumber.text = widget.prefillPhone ?? "";
+      // ================= QUICK → FULL CREATE =================
+      _partyName.text = widget.prefillName ?? '';
+      _contactNumber.text = widget.prefillPhone ?? '';
+      partyType = 'customer';
     }
   }
+
+
 
   // INPUT DECORATION
   InputDecoration _boxDecoration({String? hint}) {
@@ -827,7 +972,7 @@ class _CreateNewPartyScreenState extends State<CreateNewPartyScreen>
     final dateFmt = DateFormat('dd MMM yyyy');
 
     return Scaffold(
-      backgroundColor: Colors.white,
+      // backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0.5,
@@ -837,7 +982,8 @@ class _CreateNewPartyScreenState extends State<CreateNewPartyScreen>
             TextStyle(fontWeight: FontWeight.w600)),
       ),
 
-      body: DefaultTabController(
+        body: AppBackground(
+          child: DefaultTabController(
         length: 3,
         child: Column(
           children: [
@@ -1011,6 +1157,19 @@ class _CreateNewPartyScreenState extends State<CreateNewPartyScreen>
                         ListView(
                           padding: const EdgeInsets.only(top: 16),
                           children: [
+                            _label("Opening Balance Type"),
+                            const SizedBox(height: 6),
+
+                            Row(
+                              children: [
+                                _balanceTypeChip("I receive", "receive"),
+                                const SizedBox(width: 12),
+                                _balanceTypeChip("I pay", "pay"),
+                              ],
+                            ),
+
+                            const SizedBox(height: 14),
+
                             _label("Opening Balance"),
                             TextField(
                               controller: _openingBalance,
@@ -1250,6 +1409,7 @@ class _CreateNewPartyScreenState extends State<CreateNewPartyScreen>
           ],
         ),
       ),
+        ),
     );
   }
 
@@ -1280,6 +1440,31 @@ class _CreateNewPartyScreenState extends State<CreateNewPartyScreen>
     );
   }
 
+  Widget _balanceTypeChip(String label, String value) {
+    final selected = openingBalanceType == value;
+    return GestureDetector(
+      onTap: () => setState(() => openingBalanceType = value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? widget.primary.withOpacity(0.15) : const Color(0xFFF1F1F7),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: selected ? widget.primary : const Color(0xFFE0E0E0),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            fontWeight: FontWeight.w600,
+            color: selected ? widget.primary : Colors.black87,
+          ),
+        ),
+      ),
+    );
+  }
+
+
   // SAVE PARTY
   Future<void> _saveFullParty() async {
     if (!_formKey.currentState!.validate()) return;
@@ -1304,6 +1489,7 @@ class _CreateNewPartyScreenState extends State<CreateNewPartyScreen>
         "billing_city": billingAddress?.city,
         "opening_balance":
         double.tryParse(_openingBalance.text.trim()) ?? 0,
+        "opening_balance_type": openingBalanceType, // ✅ ADD THIS
         "credit_period_days": selectedCreditDays ?? 0,
         "credit_limit":
         double.tryParse(_creditLimit.text.trim()) ?? 0,
@@ -1317,8 +1503,49 @@ class _CreateNewPartyScreenState extends State<CreateNewPartyScreen>
             : DateFormat('yyyy-MM-dd').format(_dob!),
       };
 
-      final res = await http.post(
-        Uri.parse('$baseUrl/parties'),
+      // final res = await http.post(
+      //   Uri.parse('$baseUrl/parties'),
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //     "Accept": "application/json",
+      //     "Authorization": "Bearer $token",
+      //   },
+      //   body: jsonEncode(body),
+      // );
+      // final isEdit = widget.initialParty != null;
+      //
+      // final uri = isEdit
+      //     ? Uri.parse('$baseUrl/parties/${widget.initialParty!.id}')
+      //     : Uri.parse('$baseUrl/parties');
+      //
+      // final res = await http.post(
+      //   uri,
+      //   headers: {
+      //     "Content-Type": "application/json",
+      //     "Accept": "application/json",
+      //     "Authorization": "Bearer $token",
+      //   },
+      //   body: jsonEncode(body),
+      // );
+
+      final isEdit = widget.initialParty != null;
+
+      final uri = isEdit
+          ? Uri.parse('$baseUrl/parties/${widget.initialParty!.id}')
+          : Uri.parse('$baseUrl/parties');
+
+      final res = isEdit
+          ? await http.put( // ✅ PUT FOR UPDATE
+        uri,
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": "Bearer $token",
+        },
+        body: jsonEncode(body),
+      )
+          : await http.post( // ✅ POST FOR CREATE
+        uri,
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json",
@@ -1327,10 +1554,22 @@ class _CreateNewPartyScreenState extends State<CreateNewPartyScreen>
         body: jsonEncode(body),
       );
 
+
+
+      // if (res.statusCode == 200 || res.statusCode == 201) {
+      //   final json = jsonDecode(res.body);
+      //   Navigator.pop(context, PartyModel.fromJson(json['data']));
+      // }
+
       if (res.statusCode == 200 || res.statusCode == 201) {
         final json = jsonDecode(res.body);
-        Navigator.pop(context, PartyModel.fromJson(json['data']));
+        if (mounted) {
+          Navigator.of(context).pop(
+            PartyModel.fromJson(json['data']),
+          );
+        }
       }
+
     } finally {
       setState(() => _saving = false);
     }

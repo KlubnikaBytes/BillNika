@@ -5,8 +5,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'create_new_item_screen.dart';
 import 'create_invoice_screen.dart';
+import 'package:flutter_project/widgets/app_background.dart';
+
 
 const String baseUrl = 'http://127.0.0.1:8000/api';
+// const String baseUrl = "http://10.0.2.2:8000/api";
+
 
 class AddItemsScreen extends StatefulWidget {
   final List<InvoiceItem> existingItems;
@@ -21,7 +25,9 @@ class _AddItemsScreenState extends State<AddItemsScreen> {
   final Color primary = const Color(0xFF4C3FF0);
 
   List<ItemModel> allItems = [];
-  Map<int, double> selectedQty = {}; // item_id → qty
+  // Map<int, double> selectedQty = {}; // item_id → qty
+  List<InvoiceItem> selectedItems = []; // ✅ SINGLE SOURCE OF TRUTH
+
 
   bool loading = true;
 
@@ -30,6 +36,7 @@ class _AddItemsScreenState extends State<AddItemsScreen> {
     super.initState();
     _loadItems();
   }
+
 
   Future<void> _loadItems() async {
     final prefs = await SharedPreferences.getInstance();
@@ -48,10 +55,28 @@ class _AddItemsScreenState extends State<AddItemsScreen> {
             .map((e) => ItemModel.fromJson(e))
             .toList();
 
-        // preload qty if returning from invoice
-        for (var item in widget.existingItems) {
-          selectedQty[item.itemId] = item.qty;
-        }
+        // // ✅ DO NOT CLEAR
+        // for (final item in widget.existingItems) {
+        //   selectedQty[item.itemId] =
+        //       (selectedQty[item.itemId] ?? 0) + item.qty;
+        // }
+
+        // selectedQty.clear();
+        //
+        // for (final item in widget.existingItems) {
+        //   selectedQty[item.itemId] = item.qty;
+        // }
+
+        // selectedQty.clear();
+        //
+        // for (final item in widget.existingItems) {
+        //   selectedQty[item.itemId] =
+        //       (selectedQty[item.itemId] ?? 0) + item.qty;
+        // }
+        selectedItems = List.from(widget.existingItems);
+
+
+
 
         loading = false;
       });
@@ -60,84 +85,66 @@ class _AddItemsScreenState extends State<AddItemsScreen> {
     }
   }
 
-  void _increaseQty(int id) {
-    setState(() {
-      selectedQty[id] = (selectedQty[id] ?? 0) + 1;
-    });
-  }
 
-  void _decreaseQty(int id) {
-    if ((selectedQty[id] ?? 0) <= 0) return;
-    setState(() {
-      selectedQty[id] = selectedQty[id]! - 1;
-    });
-  }
+
+
+  // void _increaseQty(int id) {
+  //   setState(() {
+  //     selectedQty[id] = (selectedQty[id] ?? 0) + 1;
+  //   });
+  // }
+  //
+  // void _decreaseQty(int id) {
+  //   if ((selectedQty[id] ?? 0) <= 0) return;
+  //   setState(() {
+  //     selectedQty[id] = selectedQty[id]! - 1;
+  //   });
+  // }
+
+
+
 
   // void _finishSelection() {
-  //   final List<InvoiceItem> updatedItems = [];
+  //   final List<InvoiceItem> result = [];
   //
   //   selectedQty.forEach((id, qty) {
   //     if (qty > 0) {
   //       final item = allItems.firstWhere((x) => x.id == id);
   //
-  //       updatedItems.add(
+  //       result.add(
   //         InvoiceItem(
-  //           itemId: id,
-  //           description: item.name,
+  //           itemId: item.id,
+  //           description: item.name, // ✅ ONLY for UI
   //           qty: qty,
   //           unit: item.unit ?? "PCS",
-  //           price: item.salesPrice?.toDouble() ?? 0,
+  //           price: item.salesPrice.toDouble(),
   //           gstPercent: item.gstPercent?.toDouble() ?? 0,
   //         ),
   //       );
   //     }
   //   });
   //
-  //   Navigator.pop(context, updatedItems);
+  //   Navigator.pop(context, result); // ✅ List<InvoiceItem>
   // }
 
   void _finishSelection() {
-    final Map<int, InvoiceItem> merged = {};
-
-    // 1️⃣ Add EXISTING items first
-    for (var oldItem in widget.existingItems) {
-      merged[oldItem.itemId] = InvoiceItem(
-        itemId: oldItem.itemId,
-        description: oldItem.description,
-        qty: oldItem.qty,
-        unit: oldItem.unit,
-        price: oldItem.price,
-        gstPercent: oldItem.gstPercent,
-      );
-    }
-
-    // 2️⃣ Add UPDATED selections (new values overwrite old ones)
-    selectedQty.forEach((id, qty) {
-      if (qty > 0) {
-        final item = allItems.firstWhere((x) => x.id == id);
-
-        merged[id] = InvoiceItem(
-          itemId: id,
-          description: item.name,
-          qty: qty,
-          unit: item.unit ?? "PCS",
-          price: item.salesPrice.toDouble(),
-          gstPercent: item.gstPercent?.toDouble() ?? 0,
-        );
-      }
-    });
-
-    // 3️⃣ Convert Map → List
-    final updatedItems = merged.values.toList();
-
-    Navigator.pop(context, updatedItems);
+    Navigator.pop(context, selectedItems);
   }
+
+
+
+
+
+
+
+
+
 
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      // backgroundColor: Colors.white,
 
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -149,16 +156,30 @@ class _AddItemsScreenState extends State<AddItemsScreen> {
         title: _searchBox(),
       ),
 
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : ListView(
-        padding: const EdgeInsets.all(14),
-        children: [
-          _topButtons(),
-          const SizedBox(height: 12),
-          ...allItems.map(_buildItemTile).toList(),
-        ],
+      // body: loading
+      //     ? const Center(child: CircularProgressIndicator())
+      //     : ListView(
+      //   padding: const EdgeInsets.all(14),
+      //   children: [
+      //     _topButtons(),
+      //     const SizedBox(height: 12),
+      //     ...allItems.map(_buildItemTile).toList(),
+      //   ],
+      // ),
+
+      body: AppBackground(
+        child: loading
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+          padding: const EdgeInsets.all(14),
+          children: [
+            _topButtons(),
+            const SizedBox(height: 12),
+            ...allItems.map(_buildItemTile).toList(),
+          ],
+        ),
       ),
+
 
       bottomNavigationBar: _bottomBar(),
     );
@@ -253,7 +274,11 @@ class _AddItemsScreenState extends State<AddItemsScreen> {
   // Item tile
   // ---------------------------------------------
   Widget _buildItemTile(ItemModel item) {
-    final qty = selectedQty[item.id] ?? 0;
+    // final qty = selectedQty[item.id] ?? 0;
+    final index =
+    selectedItems.indexWhere((e) => e.itemId == item.id);
+    final qty = index >= 0 ? selectedItems[index].qty : 0;
+
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -293,7 +318,27 @@ class _AddItemsScreenState extends State<AddItemsScreen> {
           // ADD / +/- UI
           qty == 0
               ? GestureDetector(
-            onTap: () => _increaseQty(item.id),
+            // onTap: () => _increaseQty(item.id),
+            onTap: () {
+              setState(() {
+                if (index >= 0) {
+                  selectedItems[index] =
+                      selectedItems[index].copyWith(qty: qty + 1);
+                } else {
+                  selectedItems.add(
+                    InvoiceItem(
+                      itemId: item.id,
+                      description: item.name,
+                      qty: 1,
+                      unit: item.unit ?? "PCS",
+                      price: item.salesPrice,
+                      gstPercent: item.gstPercent ?? 0,
+                    ),
+                  );
+                }
+              });
+            },
+
             child: Container(
               padding:
               const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
@@ -310,7 +355,18 @@ class _AddItemsScreenState extends State<AddItemsScreen> {
               : Row(
             children: [
               GestureDetector(
-                onTap: () => _decreaseQty(item.id),
+                // onTap: () => _decreaseQty(item.id),
+                onTap: () {
+                  setState(() {
+                    if (qty <= 1) {
+                      selectedItems.removeAt(index);
+                    } else {
+                      selectedItems[index] =
+                          selectedItems[index].copyWith(qty: qty - 1);
+                    }
+                  });
+                },
+
                 child: _roundButton(Icons.remove),
               ),
               Container(
@@ -322,7 +378,27 @@ class _AddItemsScreenState extends State<AddItemsScreen> {
                 ),
               ),
               GestureDetector(
-                onTap: () => _increaseQty(item.id),
+                // onTap: () => _increaseQty(item.id),
+                onTap: () {
+                  setState(() {
+                    if (index >= 0) {
+                      selectedItems[index] =
+                          selectedItems[index].copyWith(qty: qty + 1);
+                    } else {
+                      selectedItems.add(
+                        InvoiceItem(
+                          itemId: item.id,
+                          description: item.name,
+                          qty: 1,
+                          unit: item.unit ?? "PCS",
+                          price: item.salesPrice,
+                          gstPercent: item.gstPercent ?? 0,
+                        ),
+                      );
+                    }
+                  });
+                },
+
                 child: _roundButton(Icons.add),
               ),
             ],
@@ -350,47 +426,113 @@ class _AddItemsScreenState extends State<AddItemsScreen> {
     double totalQty = 0;
     double totalAmount = 0;
 
-    selectedQty.forEach((id, qty) {
-      if (qty > 0) {
-        final item = allItems.firstWhere((e) => e.id == id);
-        totalQty += qty;
-        totalAmount += (item.salesPrice * qty);
-      }
-    });
+    // selectedQty.forEach((id, qty) {
+    //   if (qty > 0) {
+    //     final item = allItems.firstWhere((e) => e.id == id);
+    //     totalQty += qty;
+    //     totalAmount += (item.salesPrice * qty);
+    //   }
+    // });
+
+    for (final item in selectedItems) {
+      totalQty += item.qty;
+      totalAmount += item.lineTotal;
+    }
+
+
+    // 🚫 Hide completely if no items
+    if (totalQty == 0) {
+      return const SizedBox.shrink();
+    }
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
+        color: Colors.white,
         border: Border(top: BorderSide(color: Colors.grey.shade300)),
       ),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            "${totalQty.toStringAsFixed(1)} ITEMS",
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          const Spacer(),
-          Text(
-            "₹ ${totalAmount.toStringAsFixed(0)}",
-            style: const TextStyle(
-                fontSize: 18, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(width: 14),
-          ElevatedButton(
-            onPressed: _finishSelection,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: primary,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
+          // ================= ROW 1 =================
+          Row(
+            children: [
+              Text(
+                "${totalQty.toStringAsFixed(1)} ITEMS",
+                style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
               ),
-            ),
-            child: const Text("Generate Bill"),
+              const Spacer(),
+              Text(
+                "₹ ${totalAmount.toStringAsFixed(0)}",
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
+          // ================= ROW 2 =================
+          Row(
+            children: [
+              // LEFT TEXT (CLICKABLE)
+              Expanded(
+                child: GestureDetector(
+                  onTap: _finishSelection, // 👈 SAME AS Generate Bill
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: const [
+                      Text(
+                        "Add more details",
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.deepPurple,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        "Additional charges, Round off...",
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.black54,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+
+              // GENERATE BILL BUTTON
+              ElevatedButton(
+                onPressed: _finishSelection,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primary,
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                child: const Text(
+                  "Generate Bill",
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
+
+
 }
 
 // ============================================================

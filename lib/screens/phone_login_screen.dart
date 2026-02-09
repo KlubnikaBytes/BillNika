@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import 'otp_screen.dart';
 
+import 'package:flutter_project/widgets/app_background.dart';
+
+
 class PhoneLoginScreen extends StatefulWidget {
   static const routeName = '/phone-login';
 
@@ -93,7 +96,8 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
         elevation: 0,
         backgroundColor: Colors.white,
       ),
-      body: Padding(
+        body: AppBackground(
+          child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,6 +176,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
           ],
         ),
       ),
+        ),
     );
   }
 }

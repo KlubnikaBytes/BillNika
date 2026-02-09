@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_project/widgets/app_background.dart';
+
 
 class ImeiListScreen extends StatefulWidget {
   final List<String>? initial;
@@ -79,9 +81,10 @@ class _ImeiListScreenState extends State<ImeiListScreen> {
         elevation: 0.4,
       ),
 
-      body: Column(
-        children: [
-          const SizedBox(height: 20),
+        body: AppBackground(
+          child: Column(
+            children: [
+              const SizedBox(height: 20),
 
           // -------------------------
           // BUTTON ROW
@@ -237,6 +240,7 @@ class _ImeiListScreenState extends State<ImeiListScreen> {
           ),
         ],
       ),
+        ),
     );
   }
 }
