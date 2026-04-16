@@ -6,8 +6,9 @@ import 'item_detail_screen.dart';
 
 import 'package:flutter_project/widgets/app_background.dart';
 
+import 'stock_report_screen.dart';
 
-const String baseUrl = "http://127.0.0.1:8000/api";
+const String baseUrl = 'http://192.168.1.11:8000/api';
 // const String baseUrl = "http://10.0.2.2:8000/api";
 
 
@@ -64,14 +65,14 @@ class _StockSummaryScreenState extends State<StockSummaryScreen> {
         title: const Text("Stock Summary",
             style: TextStyle(color: Colors.black)),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.grid_on, color: Colors.green),
-            onPressed: () {},
-          ),
+          // IconButton(
+          //   icon: const Icon(Icons.picture_as_pdf, color: Colors.red),
+          //   onPressed: () {},
+          // ),
+          // IconButton(
+          //   icon: const Icon(Icons.grid_on, color: Colors.green),
+          //   onPressed: () {},
+          // ),
         ],
       ),
 
@@ -135,18 +136,30 @@ class _StockSummaryScreenState extends State<StockSummaryScreen> {
                       style: TextStyle(
                           fontSize: 16, fontWeight: FontWeight.w500),
                     ),
-                    Row(
-                      children: const [
-                        Text(
-                          "VIEW FULL REPORT",
-                          style: TextStyle(
+
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const StockReportScreen(),
+                          ),
+                        );
+                      },
+                      child: Row(
+                        children: const [
+                          Text(
+                            "VIEW FULL REPORT",
+                            style: TextStyle(
                               color: Colors.deepPurple,
-                              fontWeight: FontWeight.w600),
-                        ),
-                        SizedBox(width: 6),
-                        Icon(Icons.picture_as_pdf,
-                            size: 18, color: Colors.deepPurple),
-                      ],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          SizedBox(width: 6),
+                          Icon(Icons.picture_as_pdf,
+                              size: 18, color: Colors.deepPurple),
+                        ],
+                      ),
                     ),
                   ],
                 ),

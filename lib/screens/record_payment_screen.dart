@@ -10,7 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_project/widgets/app_background.dart';
 
 
-const String baseUrl = "http://127.0.0.1:8000/api";
+const String baseUrl = 'http://192.168.1.11:8000/api';
 // const String baseUrl = "http://10.0.2.2:8000/api";
 
 
@@ -58,8 +58,15 @@ class _RecordPaymentScreenState extends State<RecordPaymentScreen> {
       ),
         body: AppBackground(
           child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+        // padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              MediaQuery.of(context).viewInsets.bottom + 16, // ✅ KEY FIX
+            ),
+            child: SingleChildScrollView(
+              child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
@@ -202,6 +209,31 @@ class _RecordPaymentScreenState extends State<RecordPaymentScreen> {
               ),
             ),
 
+            const SizedBox(height: 20),
+
+            const Text("PAYMENT MODE"),
+            const SizedBox(height: 6),
+
+            DropdownButtonFormField<String>(
+              value: selectedPaymentMode,
+              items: const [
+                DropdownMenuItem(value: "Cash", child: Text("Cash")),
+                DropdownMenuItem(value: "UPI", child: Text("UPI")),
+                DropdownMenuItem(value: "Card", child: Text("Card")),
+                DropdownMenuItem(value: "Bank", child: Text("Bank")),
+              ],
+              onChanged: (v) {
+                if (v != null) {
+                  setState(() => selectedPaymentMode = v);
+                }
+              },
+              decoration: InputDecoration(
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+
 
 
             const SizedBox(height: 20),
@@ -280,41 +312,43 @@ class _RecordPaymentScreenState extends State<RecordPaymentScreen> {
 
 
 
-            const SizedBox(height: 20),
+            // const SizedBox(height: 20),
+            //
+            // const Text("PAYMENT MODE"),
+            // const SizedBox(height: 6),
+            //
+            // DropdownButtonFormField<String>(
+            //   value: selectedPaymentMode,
+            //   items: const [
+            //     DropdownMenuItem(value: "Cash", child: Text("Cash")),
+            //     DropdownMenuItem(value: "UPI", child: Text("UPI")),
+            //     DropdownMenuItem(value: "Card", child: Text("Card")),
+            //     DropdownMenuItem(value: "Bank", child: Text("Bank")),
+            //   ],
+            //   onChanged: (v) {
+            //     if (v != null) {
+            //       setState(() => selectedPaymentMode = v);
+            //     }
+            //   },
+            //   decoration: InputDecoration(
+            //     border: OutlineInputBorder(
+            //       borderRadius: BorderRadius.circular(10),
+            //     ),
+            //   ),
+            // ),
 
-            const Text("PAYMENT MODE"),
-            const SizedBox(height: 6),
 
-            DropdownButtonFormField<String>(
-              value: selectedPaymentMode,
-              items: const [
-                DropdownMenuItem(value: "Cash", child: Text("Cash")),
-                DropdownMenuItem(value: "UPI", child: Text("UPI")),
-                DropdownMenuItem(value: "Card", child: Text("Card")),
-                DropdownMenuItem(value: "Bank", child: Text("Bank")),
-              ],
-              onChanged: (v) {
-                if (v != null) {
-                  setState(() => selectedPaymentMode = v);
-                }
-              },
-              decoration: InputDecoration(
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-            ),
+            // const SizedBox(height: 20),
+            //
+            // ListTile(
+            //   title: const Text("Select Bank Account"),
+            //   trailing: const Icon(Icons.chevron_right),
+            //   onTap: () {},
+            // ),
 
 
-            const SizedBox(height: 20),
 
-            ListTile(
-              title: const Text("Select Bank Account"),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () {},
-            ),
-
-            const Spacer(),
+            // const Spacer(),
 
             // SizedBox(
             //   width: double.infinity,
@@ -337,6 +371,7 @@ class _RecordPaymentScreenState extends State<RecordPaymentScreen> {
           ],
         ),
       ),
+        ),
         ),
     );
   }
@@ -364,7 +399,7 @@ class _RecordPaymentScreenState extends State<RecordPaymentScreen> {
     );
 
     if (success == true) {
-      Navigator.pop(context); // close RecordPaymentScreen
+      Navigator.pop(context,true); // close RecordPaymentScreen
     }
   }
 

@@ -13,7 +13,7 @@ import 'package:flutter_project/widgets/app_background.dart';
 
 
 
-const String baseUrl = "http://127.0.0.1:8000/api";
+const String baseUrl = 'http://192.168.1.11:8000/api';
 // const String baseUrl = "http://10.0.2.2:8000/api";
 
 
@@ -43,6 +43,9 @@ class _ItemsScreenState extends State<ItemsScreen> {
 // 🔴 Used to show red mark on "Filter By" chip
   bool filterApplied = false;
 
+  bool isSearching = false;
+  TextEditingController searchController = TextEditingController();
+
 
 
   @override
@@ -51,12 +54,18 @@ class _ItemsScreenState extends State<ItemsScreen> {
     fetchItems();
   }
 
-  Future<void> fetchItems() async {
+  Future<void> fetchItems({String? search}) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? "";
 
+    String url = "$baseUrl/items";
+
+    if (search != null && search.isNotEmpty) {
+      url += "?search=$search"; // 🔥 API SEARCH
+    }
+
     final res = await http.get(
-      Uri.parse("$baseUrl/items"),
+      Uri.parse(url),
       headers: {
         "Authorization": "Bearer $token",
         "Accept": "application/json",
@@ -70,6 +79,26 @@ class _ItemsScreenState extends State<ItemsScreen> {
       loading = false;
     });
   }
+
+  // Future<void> fetchItems() async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final token = prefs.getString('token') ?? "";
+  //
+  //   final res = await http.get(
+  //     Uri.parse("$baseUrl/items"),
+  //     headers: {
+  //       "Authorization": "Bearer $token",
+  //       "Accept": "application/json",
+  //     },
+  //   );
+  //
+  //   final decoded = jsonDecode(res.body);
+  //
+  //   setState(() {
+  //     items = decoded['data'] ?? [];
+  //     loading = false;
+  //   });
+  // }
 
   // void handleBottomNavTap(BuildContext context, int index) {
   //   if (index == 0) {
@@ -138,7 +167,13 @@ class _ItemsScreenState extends State<ItemsScreen> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             return Padding(
-              padding: const EdgeInsets.all(16),
+              // padding: const EdgeInsets.all(16),
+              padding: EdgeInsets.fromLTRB(
+                16,
+                16,
+                16,
+                MediaQuery.of(context).padding.bottom + 16, // ✅ FIX
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,7 +197,32 @@ class _ItemsScreenState extends State<ItemsScreen> {
                   const SizedBox(height: 16),
 
                   // ===== SORT BY =====
-                  const Text("Sort By", style: TextStyle(fontWeight: FontWeight.w600)),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Sort By",
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          setModalState(() {
+                            tempSort = null;
+                            tempLow = false;
+                            tempInStock = false;
+                            tempNotInStock = false;
+                          });
+                        },
+                        child: const Text(
+                          "CLEAR",
+                          style: TextStyle(
+                            color: Colors.deepPurple,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
 
                   RadioListTile(
                     title: const Text("Item name - A to Z"),
@@ -218,10 +278,40 @@ class _ItemsScreenState extends State<ItemsScreen> {
                   const SizedBox(height: 20),
 
                   // APPLY BUTTON
+                  // SizedBox(
+                  //   width: double.infinity,
+                  //   height: 48,
+                  //   child: ElevatedButton(
+                  //     onPressed: () {
+                  //       setState(() {
+                  //         sortBy = tempSort;
+                  //         filterLowStock = tempLow;
+                  //         filterInStock = tempInStock;
+                  //         filterNotInStock = tempNotInStock;
+                  //
+                  //         filterApplied =
+                  //             sortBy != null ||
+                  //                 filterLowStock ||
+                  //                 filterInStock ||
+                  //                 filterNotInStock;
+                  //       });
+                  //
+                  //       Navigator.pop(context);
+                  //     },
+                  //     child: const Text("Apply"),
+                  //   ),
+                  // ),
                   SizedBox(
                     width: double.infinity,
-                    height: 48,
                     child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepPurple,
+                        foregroundColor: Colors.white, // ✅ FIX: makes text white
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(30),
+                        ),
+                      ),
                       onPressed: () {
                         setState(() {
                           sortBy = tempSort;
@@ -238,7 +328,13 @@ class _ItemsScreenState extends State<ItemsScreen> {
 
                         Navigator.pop(context);
                       },
-                      child: const Text("Apply"),
+                      child: const Text(
+                        "Apply",
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -295,15 +391,53 @@ class _ItemsScreenState extends State<ItemsScreen> {
       // backgroundColor: const Color(0xFFF6F7FB),
 
       // ================= APP BAR =================
+      // appBar: AppBar(
+      //   backgroundColor: Colors.white,
+      //   elevation: 0,
+      //   title: const Text("Items", style: TextStyle(color: Colors.black)),
+      //   actions: const [
+      //     Icon(Icons.search, color: Colors.deepPurple),
+      //     SizedBox(width: 16),
+      //     Icon(Icons.settings, color: Colors.deepPurple),
+      //     SizedBox(width: 12),
+      //   ],
+      // ),
+
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text("Items", style: TextStyle(color: Colors.black)),
-        actions: const [
-          Icon(Icons.search, color: Colors.deepPurple),
-          SizedBox(width: 16),
-          Icon(Icons.settings, color: Colors.deepPurple),
-          SizedBox(width: 12),
+        title: isSearching
+            ? TextField(
+          controller: searchController,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: "Search items...",
+            border: InputBorder.none,
+          ),
+          onChanged: (value) {
+            fetchItems(search: value); // 🔥 LIVE API SEARCH
+          },
+        )
+            : const Text("Items", style: TextStyle(color: Colors.black)),
+
+        actions: [
+          IconButton(
+            icon: Icon(
+              isSearching ? Icons.close : Icons.search,
+              color: Colors.deepPurple,
+            ),
+            onPressed: () {
+              setState(() {
+                isSearching = !isSearching;
+                searchController.clear();
+              });
+
+              fetchItems(); // 🔥 reset list
+            },
+          ),
+          const SizedBox(width: 8),
+          const Icon(Icons.settings, color: Colors.deepPurple),
+          const SizedBox(width: 12),
         ],
       ),
 

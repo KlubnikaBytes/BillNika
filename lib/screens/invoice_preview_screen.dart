@@ -1,3 +1,5 @@
+
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
@@ -7,6 +9,9 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+
+// ✅ ADD THIS IMPORT
+import 'home_screen.dart';
 
 
 class InvoicePreviewScreen extends StatelessWidget {
@@ -34,6 +39,9 @@ class InvoicePreviewScreen extends StatelessWidget {
     final double cgst = totalTax / 2;
     final double sgst = totalTax / 2;
 
+    final business = invoiceData["business"] ?? {};
+
+
 
 
 
@@ -45,6 +53,17 @@ class InvoicePreviewScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         title: const Text("Invoice Created"),
+        // ✅ UPDATED BACK BUTTON
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (context) => const HomeScreen()),
+                  (route) => false,
+            );
+          },
+        ),
       ),
 
       body: ListView(
@@ -61,13 +80,25 @@ class InvoicePreviewScreen extends StatelessWidget {
               children: [
 
                 // BUSINESS NAME
+                // Text(
+                //   "CENTRAL WARE HOUSING CORP. LTD.",
+                //   style: const TextStyle(
+                //     fontSize: 18,
+                //     fontWeight: FontWeight.bold,
+                //   ),
+                // ),
+
                 Text(
-                  "CENTRAL WARE HOUSING CORP. LTD.",
+                  business["industry"] ?? "",
                   style: const TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+
+                if ((business["gstin"] ?? "").toString().isNotEmpty)
+                  Text("GSTIN ${business["gstin"]}"),
+
 
                 Text("GSTIN ${party["gst_number"] ?? ""}"),
                 const SizedBox(height: 12),
@@ -273,8 +304,15 @@ class InvoicePreviewScreen extends StatelessWidget {
               "Share",
               onTap: () => _shareInvoice(context),
             ),
+            // ✅ UPDATED DONE BUTTON
             ElevatedButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                Navigator.pushAndRemoveUntil(
+                  context,
+                  MaterialPageRoute(builder: (context) => const HomeScreen()),
+                      (route) => false,
+                );
+              },
               child: const Text("Done"),
             ),
           ],
@@ -438,5 +476,6 @@ Widget rowText(String label, num value, {bool bold = false}) {
     ),
   );
 }
+
 
 

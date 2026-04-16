@@ -5,6 +5,8 @@ import 'more_screen.dart';
 import 'parties_screen.dart';
 import 'items_screen.dart';
 import 'home_screen.dart';
+import 'calculator_screen.dart';
+import 'gst_filing_screen.dart';
 
 import 'package:flutter_project/widgets/app_background.dart';
 
@@ -125,10 +127,10 @@ class ForYouScreen extends StatelessWidget {
           // ================= MARKETING =================
           _section("Marketing & Sales"),
           _iconGrid([
-            _iconTile(FontAwesomeIcons.whatsapp, "WhatsApp\nMarketing"),
-            _iconTile(Icons.card_giftcard, "Reward\nPoints"),
-            _iconTile(Icons.event, "Notes &\nAppointments"),
-            _iconTile(Icons.store, "Online\nStore"),
+            _iconTile(context,FontAwesomeIcons.whatsapp, "WhatsApp\nMarketing"),
+            _iconTile(context,Icons.card_giftcard, "Reward\nPoints"),
+            _iconTile(context,Icons.event, "Notes &\nAppointments"),
+            _iconTile(context,Icons.store, "Online\nStore"),
           ]),
 
           const SizedBox(height: 20),
@@ -136,10 +138,10 @@ class ForYouScreen extends StatelessWidget {
           // ================= ACCOUNTING =================
           _section("Accounting"),
           _iconGrid([
-            _iconTile(Icons.receipt_long, "GST\nFiling"),
-            _iconTile(Icons.balance, "Balance\nSheet"),
-            _iconTile(Icons.autorenew, "Automated\nBills"),
-            _iconTile(Icons.share, "CA Reports\nSharing"),
+            _iconTile(context,Icons.receipt_long, "GST\nFiling"),
+            _iconTile(context,Icons.balance, "Balance\nSheet"),
+            _iconTile(context,Icons.autorenew, "Automated\nBills"),
+            _iconTile(context,Icons.share, "CA Reports\nSharing"),
           ]),
 
           const SizedBox(height: 20),
@@ -147,7 +149,7 @@ class ForYouScreen extends StatelessWidget {
           // ================= BUSINESS =================
           _section("Business Efficiency"),
           _iconGrid([
-            _iconTile(Icons.calculate, "Smart\nCalculator"),
+            _iconTile(context, Icons.calculate, "Smart\nCalculator"),
           ]),
         ],
       ),
@@ -220,26 +222,76 @@ class ForYouScreen extends StatelessWidget {
     );
   }
 
-  static Widget _iconTile(IconData icon, String label) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        CircleAvatar(
-          radius: 26,
-          backgroundColor: purple.withOpacity(0.1),
-          child: icon is IconData
-              ? Icon(icon, color: purple)
-              : FaIcon(icon, color: purple),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          label,
-          textAlign: TextAlign.center,
-          style: const TextStyle(fontSize: 12),
-        ),
-      ],
+  // static Widget _iconTile(IconData icon, String label) {
+  //   return Column(
+  //     mainAxisSize: MainAxisSize.min,
+  //     children: [
+  //       CircleAvatar(
+  //         radius: 26,
+  //         backgroundColor: purple.withOpacity(0.1),
+  //         child: icon is IconData
+  //             ? Icon(icon, color: purple)
+  //             : FaIcon(icon, color: purple),
+  //       ),
+  //       const SizedBox(height: 6),
+  //       Text(
+  //         label,
+  //         textAlign: TextAlign.center,
+  //         style: const TextStyle(fontSize: 12),
+  //       ),
+  //     ],
+  //   );
+  // }
+
+  static Widget _iconTile(
+      BuildContext context,
+      IconData icon,
+      String label,
+      ) {
+    return GestureDetector(
+      onTap: () {
+        // ✅ ONLY FOR CALCULATOR
+        // ✅ GST Filing
+        if (label.contains("GST")) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const GstFilingScreen(),
+            ),
+          );
+        }
+
+        // ✅ Calculator
+        else if (label.contains("Calculator")) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => const CalculatorScreen(),
+            ),
+          );
+        }
+      },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 26,
+            backgroundColor: purple.withOpacity(0.1),
+            child: icon is IconData
+                ? Icon(icon, color: purple)
+                : FaIcon(icon, color: purple),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12),
+          ),
+        ],
+      ),
     );
   }
+
 }
 
 // ================= RECOMMENDED TILE =================

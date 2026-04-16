@@ -47,6 +47,20 @@ dependencies:
   pdf: ^3.11.0
   image_picker: ^1.0.7
   font_awesome_flutter: ^10.7.0
+  flutter_contacts: ^1.1.9+2
+  flutter_native_contact_picker: ^0.0.6
+  math_expressions: ^3.1.0
+  flutter_image_compress: ^2.0.0
+  url_launcher: ^6.2.5
+  provider: ^6.0.5   # ✅ ADD THIS
+  dio: ^5.4.0
+  open_file: ^3.3.2
+
+  file_picker: ^8.0.0
+
+
+
+
 
 
 dev_dependencies:
@@ -59,6 +73,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -74,7 +89,21 @@ flutter:
   assets:
     - assets/data/india_cities.json
     - assets/invoice_sample.png
+    - assets/contact_import.png
     - assets/invoices/
+
+# ✅ MUST BE TOP LEVEL (NOT inside flutter)
+flutter_icons:
+  android: true
+  ios: false
+
+  windows:
+    generate: true
+
+  image_path: "assets/app_icon.png"
+  min_sdk_android: 21
+
+
 
   # To add assets to your application, add an assets section, like this:
   # assets:
@@ -106,3 +135,6 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+
+

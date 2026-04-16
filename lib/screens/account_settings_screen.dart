@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'phone_login_screen.dart';
+
+const String baseUrl = 'http://192.168.1.11:8000/api';
 
 class AccountSettingsScreen extends StatefulWidget {
   const AccountSettingsScreen({super.key});
@@ -118,6 +123,34 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
     );
   }
 
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token') ?? "";
+
+    try {
+      await http.post(
+        Uri.parse("$baseUrl/logout"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Accept": "application/json",
+        },
+      );
+    } catch (e) {
+      debugPrint("Logout API error: $e");
+    }
+
+    await prefs.remove('token');
+    await prefs.clear();
+
+    if (!mounted) return;
+
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      PhoneLoginScreen.routeName,
+          (route) => false,
+    );
+  }
+
   // ================= HELPERS =================
 
   Widget _inputBox({required Widget child, Color? color}) {
@@ -193,7 +226,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
                 ),
                 onPressed: () {
                   Navigator.pop(context);
-                  // TODO: clear token + navigate to login
+                  _logout();
                 },
                 child: const Text("Yes"),
               ),

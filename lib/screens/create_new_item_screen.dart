@@ -26,12 +26,13 @@ import 'package:image_picker/image_picker.dart';
 import 'dart:math';
 
 import 'package:flutter_project/widgets/app_background.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 
 
 
 
 
-const String baseUrl = "http://127.0.0.1:8000/api";
+const String baseUrl = 'http://192.168.1.11:8000/api';
 // const String baseUrl = "http://10.0.2.2:8000/api";
 
 
@@ -220,12 +221,31 @@ class _CreateNewItemScreenState extends State<CreateNewItemScreen>
     }
   }
 
+  Future<File> compressImage(File file) async {
+    final result = await FlutterImageCompress.compressWithFile(
+      file.path,
+      quality: 70,
+    );
+
+    final newFile = File(file.path)
+      ..writeAsBytesSync(result!);
+
+    return newFile;
+  }
+
 
   // SAVE ITEM
   Future<void> saveItem() async {
     if (nameCtrl.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Item name is required")),
+      );
+      return;
+    }
+    // ✅ ADD THIS
+    if (openingStockCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter Opening Stock")),
       );
       return;
     }
@@ -291,12 +311,31 @@ class _CreateNewItemScreenState extends State<CreateNewItemScreen>
         //   body: jsonEncode(body),
         // );
 
+        // final res = isEdit
+        //     ? await http.put(
+        //   uri,
+        //   headers: {
+        //     "Authorization": "Bearer $token",
+        //     "Content-Type": "application/json",
+        //   },
+        //   body: jsonEncode(body),
+        // )
+        //     : await http.post(
+        //   uri,
+        //   headers: {
+        //     "Authorization": "Bearer $token",
+        //     "Content-Type": "application/json",
+        //   },
+        //   body: jsonEncode(body),
+        // );
+
         final res = isEdit
             ? await http.put(
           uri,
           headers: {
             "Authorization": "Bearer $token",
             "Content-Type": "application/json",
+            "Accept": "application/json", // ✅ ADD HERE
           },
           body: jsonEncode(body),
         )
@@ -305,9 +344,19 @@ class _CreateNewItemScreenState extends State<CreateNewItemScreen>
           headers: {
             "Authorization": "Bearer $token",
             "Content-Type": "application/json",
+            "Accept": "application/json", // ✅ ADD HERE
           },
           body: jsonEncode(body),
         );
+
+// 🚨 ADD THIS IMMEDIATELY AFTER API CALL
+        final contentType = res.headers['content-type'] ?? '';
+        if (!contentType.contains('application/json')) {
+          debugPrint("HTML RESPONSE RECEIVED:");
+          debugPrint(res.body);
+          throw Exception("API returned HTML instead of JSON");
+        }
+
 
 
         // if (res.statusCode == 200 || res.statusCode == 201) {
@@ -326,6 +375,7 @@ class _CreateNewItemScreenState extends State<CreateNewItemScreen>
       } else {
         // ---------------- MOBILE (ANDROID / IOS) ----------------
         final request = http.MultipartRequest("POST", uri);
+        request.headers["Accept"] = "application/json"; // ✅ ADD HERE
 
         if (isEdit) {
           request.fields["_method"] = "PUT"; // ✅ REQUIRED FOR LARAVEL
@@ -371,17 +421,35 @@ class _CreateNewItemScreenState extends State<CreateNewItemScreen>
           request.fields["imei_list[$i]"] = imeiList[i];
         }
 
+        // if (_itemImage != null) {
+        //   request.files.add(
+        //     await http.MultipartFile.fromPath(
+        //       "image",
+        //       _itemImage!.path,
+        //     ),
+        //   );
+        // }
         if (_itemImage != null) {
+          final compressed = await compressImage(_itemImage!);
+
           request.files.add(
             await http.MultipartFile.fromPath(
               "image",
-              _itemImage!.path,
+              compressed.path,
             ),
           );
         }
 
         final streamedRes = await request.send();
         final res = await http.Response.fromStream(streamedRes);
+
+        final contentType = res.headers['content-type'] ?? '';
+        if (!contentType.contains('application/json')) {
+          debugPrint("HTML RESPONSE RECEIVED:");
+          debugPrint(res.body);
+          throw Exception("API returned HTML instead of JSON");
+        }
+
 
         // if (res.statusCode == 200 || res.statusCode == 201) {
         //   Navigator.pop(context, true);
@@ -857,6 +925,7 @@ class _CreateNewItemScreenState extends State<CreateNewItemScreen>
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.deepPurple,
+                    foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -909,6 +978,7 @@ class _CreateNewItemScreenState extends State<CreateNewItemScreen>
     }
 
     return Scaffold(
+      resizeToAvoidBottomInset: true, // ✅ ADD THIS
       // backgroundColor: Colors.white,
       body: AppBackground(
         child: SafeArea(
@@ -971,11 +1041,17 @@ class _CreateNewItemScreenState extends State<CreateNewItemScreen>
       // UPDATED BOTTOM BUTTONS (Add More Details → Invoice Screen)
       // *********************************************************************
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          16,
+          16,
+          MediaQuery.of(context).viewInsets.bottom + 16, // ✅ KEY FIX
+        ),
         child: ElevatedButton(
           onPressed: saving ? null : saveItem,
           style: ElevatedButton.styleFrom(
             backgroundColor: primary,
+            foregroundColor: Colors.white,
             minimumSize: const Size(double.infinity, 52),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -1497,7 +1573,7 @@ class _CreateNewItemScreenState extends State<CreateNewItemScreen>
             children: [
               typeBtn("Product"),
               const SizedBox(width: 12),
-              typeBtn("Service"),
+              // typeBtn("Service"),
             ],
           ),
         ],

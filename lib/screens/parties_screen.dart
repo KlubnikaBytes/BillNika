@@ -8,12 +8,13 @@ import 'items_screen.dart';
 import 'home_screen.dart';
 import 'for_you_screen.dart';
 import 'more_screen.dart';
+import 'import_contacts_screen.dart';
 import 'package:flutter_project/widgets/app_background.dart';
 
 
 
 //
-const String baseUrl = "http://127.0.0.1:8000/api";
+const String baseUrl = 'http://192.168.1.11:8000/api';
 // const String baseUrl = "http://10.0.2.2:8000/api";
 
 
@@ -44,6 +45,9 @@ class _PartiesScreenState extends State<PartiesScreen> {
 
   int navIndex = 1; // Parties selected
 
+  bool isSearching = false;
+  TextEditingController searchController = TextEditingController();
+
 
   @override
   void initState() {
@@ -51,43 +55,21 @@ class _PartiesScreenState extends State<PartiesScreen> {
     fetchParties();
   }
 
-  // Future<void> fetchParties() async {
-  //   try {
-  //     final prefs = await SharedPreferences.getInstance();
-  //     final token = prefs.getString('token') ?? "";
-  //
-  //     final res = await http.get(
-  //       Uri.parse("$baseUrl/parties"),
-  //       headers: {
-  //         "Authorization": "Bearer $token",
-  //         "Accept": "application/json",
-  //       },
-  //     );
-  //
-  //     final decoded = jsonDecode(res.body);
-  //
-  //     // setState(() {
-  //     //   parties = decoded['data'] ?? [];
-  //     //   loading = false;
-  //     // });
-  //     setState(() {
-  //       parties = decoded['data'] ?? [];
-  //       filteredParties = parties; // ✅ default = show all
-  //       loading = false;
-  //     });
-  //
-  //   } catch (e) {
-  //     loading = false;
-  //   }
-  // }
 
-  Future<void> fetchParties() async {
+
+  Future<void> fetchParties({String? search}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token') ?? "";
 
+      String url = "$baseUrl/parties";
+
+      if (search != null && search.isNotEmpty) {
+        url += "?search=$search"; // 🔥 API SEARCH
+      }
+
       final res = await http.get(
-        Uri.parse("$baseUrl/parties"),
+        Uri.parse(url),
         headers: {
           "Authorization": "Bearer $token",
           "Accept": "application/json",
@@ -96,21 +78,12 @@ class _PartiesScreenState extends State<PartiesScreen> {
 
       final decoded = jsonDecode(res.body);
 
-      parties = decoded['data'] ?? [];
-
-      // 👇 APPLY INITIAL FILTER (FROM HOME)
-      if (widget.initialFilter != null) {
-        activeFilter = widget.initialFilter;
-        filteredParties = parties.where((p) {
-          return p['opening_balance_type'] == widget.initialFilter;
-        }).toList();
-      } else {
-        filteredParties = parties;
-      }
-
       setState(() {
+        parties = decoded['data'] ?? [];
+        filteredParties = parties;
         loading = false;
       });
+
     } catch (e) {
       loading = false;
     }
@@ -197,17 +170,43 @@ class _PartiesScreenState extends State<PartiesScreen> {
 
 
       // ================= APP BAR =================
+
+
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        title: const Text(
+
+        title: isSearching
+            ? TextField(
+          controller: searchController,
+          autofocus: true,
+          decoration: const InputDecoration(
+            hintText: "Search parties...",
+            border: InputBorder.none,
+          ),
+          onChanged: (value) {
+            fetchParties(search: value); // 🔥 LIVE API SEARCH
+          },
+        )
+            : const Text(
           "Parties",
           style: TextStyle(color: Colors.black),
         ),
+
         actions: [
           IconButton(
-            icon: const Icon(Icons.search, color: Colors.black),
-            onPressed: () {},
+            icon: Icon(
+              isSearching ? Icons.close : Icons.search,
+              color: Colors.black,
+            ),
+            onPressed: () {
+              setState(() {
+                isSearching = !isSearching;
+                searchController.clear();
+              });
+
+              fetchParties(); // 🔥 reset list
+            },
           ),
           IconButton(
             icon: const Icon(Icons.link, color: Colors.black),
@@ -220,7 +219,7 @@ class _PartiesScreenState extends State<PartiesScreen> {
         ],
       ),
 
-      // ================= BODY =================
+
       // ================= BODY =================
       body: AppBackground(
         child: Column(
@@ -416,28 +415,34 @@ class _PartiesScreenState extends State<PartiesScreen> {
             FloatingActionButton(
               mini: true,
               backgroundColor: Colors.grey.shade800,
-              onPressed: () {
-                // TODO: Import / Upload action
+              // onPressed: () {
+              //   Navigator.push(
+              //     context,
+              //     MaterialPageRoute(
+              //       builder: (_) => const ImportContactsScreen(),
+              //     ),
+              //   );
+              // },
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const ImportContactsScreen(),
+                  ),
+                );
+
+                if (result == true) {
+                  fetchParties(); // 🔥 refresh list
+                }
               },
               child: const Icon(Icons.upload, size: 18),
             ),
 
-            // ===== Create Party =====
-            // ElevatedButton.icon(
-            //   onPressed: () {
-            //     // TODO: Navigate to Create Party screen
-            //   },
-            //   icon: const Icon(Icons.add, size: 18),
-            //   label: const Text("Create Party"),
-            //   style: ElevatedButton.styleFrom(
-            //     backgroundColor: Colors.deepPurple,
-            //     foregroundColor: Colors.white,
-            //     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            //     shape: RoundedRectangleBorder(
-            //       borderRadius: BorderRadius.circular(30),
-            //     ),
-            //   ),
-            // ),
+
+
+            
+
+
             // ===== Create Party =====
             ElevatedButton.icon(
               onPressed: () async {
@@ -572,97 +577,125 @@ class _PartiesScreenState extends State<PartiesScreen> {
     );
   }
 
+
+
   void _openSortFilterSheet() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+      backgroundColor: Colors.transparent, // 🔥 IMPORTANT
       builder: (_) {
-        return StatefulBuilder(
-          builder: (context, modalSetState) {
-            return Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-
-                  // HEADER
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          "Sort & Filter",
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 12),
-
-                  // SORT BY
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      "Sort By",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-
-                  _sortTile("Party name - A to Z", "az", modalSetState),
-                  _sortTile("Party name - Z to A", "za", modalSetState),
-                  _sortTile("Amount - High to Low", "high", modalSetState),
-                  _sortTile("Amount - Low to High", "low", modalSetState),
-
-                  const SizedBox(height: 16),
-
-                  // FILTER BY
-                  const Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      "Filter By",
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-
-                  Wrap(
-                    spacing: 8,
-                    children: [
-                      _filterOption("Customer", "customer", modalSetState),
-                      _filterOption("Supplier", "supplier", modalSetState),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // APPLY BUTTON
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.deepPurple,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () {
-                        _applySortAndFilter();
-                        Navigator.pop(context);
-                      },
-                      child: const Text("Apply", style: TextStyle(fontSize: 16)),
-                    ),
-                  ),
-                ],
+        return SafeArea( // ✅ FIX 1
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom + 16, // ✅ FIX 2
+            ),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
               ),
-            );
-          },
+              child: StatefulBuilder(
+                builder: (context, modalSetState) {
+                  return Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: SingleChildScrollView( // ✅ FIX 3
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+
+                          // HEADER
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text(
+                                  "Sort & Filter",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: () => Navigator.pop(context),
+                              ),
+                            ],
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          // SORT BY
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              "Sort By",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+
+                          _sortTile("Party name - A to Z", "az", modalSetState),
+                          _sortTile("Party name - Z to A", "za", modalSetState),
+                          _sortTile("Amount - High to Low", "high", modalSetState),
+                          _sortTile("Amount - Low to High", "low", modalSetState),
+
+                          const SizedBox(height: 16),
+
+                          // FILTER
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              "Filter By",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                          ),
+
+                          Wrap(
+                            spacing: 8,
+                            children: [
+                              _filterOption("Customer", "customer", modalSetState),
+                              _filterOption("Supplier", "supplier", modalSetState),
+                            ],
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // APPLY BUTTON
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.deepPurple,
+                                foregroundColor: Colors.white, // ✅ ADD THIS (TEXT COLOR)
+                                padding: const EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(30), // optional (for rounded look)
+                                ),
+                              ),
+                              onPressed: () {
+                                _applySortAndFilter();
+                                Navigator.pop(context);
+                              },
+                              child: const Text(
+                                "Apply",
+                                style: TextStyle(
+                                  color: Colors.white, // ✅ EXTRA SAFE (forces white)
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(height: 10), // 👈 EXTRA SPACE
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
         );
       },
     );
@@ -751,11 +784,5 @@ class _PartiesScreenState extends State<PartiesScreen> {
       },
     );
   }
-
-
-
-
-
-
 
 }

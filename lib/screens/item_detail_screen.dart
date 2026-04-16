@@ -6,7 +6,7 @@ import 'create_new_item_screen.dart';
 import 'package:flutter_project/widgets/app_background.dart';
 
 
-const String baseUrl = "http://127.0.0.1:8000/api";
+const String baseUrl = 'http://192.168.1.11:8000/api';
 // const String baseUrl = "http://10.0.2.2:8000/api";
 
 
@@ -225,21 +225,44 @@ class _ItemDetailScreenState extends State<ItemDetailScreen>
 
       // ================= BOTTOM BUTTON =================
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-      floatingActionButton: SizedBox(
-        height: 52,
-        width: 220,
-        child: ElevatedButton(
-          onPressed: () {},
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.deepPurple,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(30),
+      // floatingActionButton: SizedBox(
+      //   height: 52,
+      //   width: 220,
+      //   child: ElevatedButton(
+      //     onPressed: () {},
+      //     style: ElevatedButton.styleFrom(
+      //       backgroundColor: Colors.deepPurple,
+      //       shape: RoundedRectangleBorder(
+      //         borderRadius: BorderRadius.circular(30),
+      //       ),
+      //       elevation: 6,
+      //     ),
+      //     child: const Text(
+      //       "Adjust Stock",
+      //       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+      //     ),
+      //   ),
+      // ),
+
+      floatingActionButton: SafeArea(
+        child: SizedBox(
+          height: 52,
+          width: 220,
+          child: ElevatedButton.icon(
+            onPressed: () {},
+            icon: const Icon(Icons.tune, size: 20), // optional icon
+            label: const Text(
+              "Adjust Stock",
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
-            elevation: 6,
-          ),
-          child: const Text(
-            "Adjust Stock",
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepPurple, // ✅ WHITE BG
+              foregroundColor: Colors.white, // ✅ TEXT COLOR
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
+            ),
           ),
         ),
       ),

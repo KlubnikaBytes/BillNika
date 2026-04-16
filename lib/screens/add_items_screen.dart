@@ -8,14 +8,19 @@ import 'create_invoice_screen.dart';
 import 'package:flutter_project/widgets/app_background.dart';
 
 
-const String baseUrl = 'http://127.0.0.1:8000/api';
+const String baseUrl = 'http://192.168.1.11:8000/api';
+// const String baseUrl = 'static const String baseUrl = 'http://192.168.1.11:8000/api';';
 // const String baseUrl = "http://10.0.2.2:8000/api";
 
 
 class AddItemsScreen extends StatefulWidget {
   final List<InvoiceItem> existingItems;
+  final bool isPurchase; // ✅ NEW
 
-  const AddItemsScreen({super.key, required this.existingItems});
+  const AddItemsScreen({super.key,
+    required this.existingItems,
+    this.isPurchase = false, // default = sales
+  });
 
   @override
   State<AddItemsScreen> createState() => _AddItemsScreenState();
@@ -55,24 +60,7 @@ class _AddItemsScreenState extends State<AddItemsScreen> {
             .map((e) => ItemModel.fromJson(e))
             .toList();
 
-        // // ✅ DO NOT CLEAR
-        // for (final item in widget.existingItems) {
-        //   selectedQty[item.itemId] =
-        //       (selectedQty[item.itemId] ?? 0) + item.qty;
-        // }
 
-        // selectedQty.clear();
-        //
-        // for (final item in widget.existingItems) {
-        //   selectedQty[item.itemId] = item.qty;
-        // }
-
-        // selectedQty.clear();
-        //
-        // for (final item in widget.existingItems) {
-        //   selectedQty[item.itemId] =
-        //       (selectedQty[item.itemId] ?? 0) + item.qty;
-        // }
         selectedItems = List.from(widget.existingItems);
 
 
@@ -86,59 +74,9 @@ class _AddItemsScreenState extends State<AddItemsScreen> {
   }
 
 
-
-
-  // void _increaseQty(int id) {
-  //   setState(() {
-  //     selectedQty[id] = (selectedQty[id] ?? 0) + 1;
-  //   });
-  // }
-  //
-  // void _decreaseQty(int id) {
-  //   if ((selectedQty[id] ?? 0) <= 0) return;
-  //   setState(() {
-  //     selectedQty[id] = selectedQty[id]! - 1;
-  //   });
-  // }
-
-
-
-
-  // void _finishSelection() {
-  //   final List<InvoiceItem> result = [];
-  //
-  //   selectedQty.forEach((id, qty) {
-  //     if (qty > 0) {
-  //       final item = allItems.firstWhere((x) => x.id == id);
-  //
-  //       result.add(
-  //         InvoiceItem(
-  //           itemId: item.id,
-  //           description: item.name, // ✅ ONLY for UI
-  //           qty: qty,
-  //           unit: item.unit ?? "PCS",
-  //           price: item.salesPrice.toDouble(),
-  //           gstPercent: item.gstPercent?.toDouble() ?? 0,
-  //         ),
-  //       );
-  //     }
-  //   });
-  //
-  //   Navigator.pop(context, result); // ✅ List<InvoiceItem>
-  // }
-
   void _finishSelection() {
     Navigator.pop(context, selectedItems);
   }
-
-
-
-
-
-
-
-
-
 
 
   @override
@@ -156,16 +94,7 @@ class _AddItemsScreenState extends State<AddItemsScreen> {
         title: _searchBox(),
       ),
 
-      // body: loading
-      //     ? const Center(child: CircularProgressIndicator())
-      //     : ListView(
-      //   padding: const EdgeInsets.all(14),
-      //   children: [
-      //     _topButtons(),
-      //     const SizedBox(height: 12),
-      //     ...allItems.map(_buildItemTile).toList(),
-      //   ],
-      // ),
+
 
       body: AppBackground(
         child: loading
@@ -239,15 +168,29 @@ class _AddItemsScreenState extends State<AddItemsScreen> {
         Expanded(
           child: GestureDetector(
             onTap: () async {
+              // final created = await Navigator.push(
+              //   context,
+              //   MaterialPageRoute(
+              //     builder: (_) => CreateNewItemScreen(primary: primary),
+              //
+              //   ),
+              // );
+              //
+              // if (created == true) _loadItems();
+
               final created = await Navigator.push(
                 context,
                 MaterialPageRoute(
                   builder: (_) => CreateNewItemScreen(primary: primary),
-
                 ),
               );
 
-              if (created == true) _loadItems();
+              // ✅ FIX: check for returned item instead of true
+              if (created != null) {
+                await _loadItems();
+              }
+
+
             },
             child: Container(
               height: 40,
@@ -304,7 +247,7 @@ class _AddItemsScreenState extends State<AddItemsScreen> {
                     style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w600)),
                 Text(
-                  "₹ ${item.salesPrice}/${item.unit}",
+                  "₹ ${widget.isPurchase ? item.purchasePrice : item.salesPrice}/${item.unit}",
                   style: const TextStyle(color: Colors.black87),
                 ),
                 Text(
@@ -331,7 +274,9 @@ class _AddItemsScreenState extends State<AddItemsScreen> {
                       description: item.name,
                       qty: 1,
                       unit: item.unit ?? "PCS",
-                      price: item.salesPrice,
+                      price: widget.isPurchase
+                          ? item.purchasePrice
+                          : item.salesPrice,
                       gstPercent: item.gstPercent ?? 0,
                     ),
                   );
@@ -450,7 +395,12 @@ class _AddItemsScreenState extends State<AddItemsScreen> {
         color: Colors.white,
         border: Border(top: BorderSide(color: Colors.grey.shade300)),
       ),
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+      padding: EdgeInsets.fromLTRB(
+        16,
+        12,
+        16,
+        MediaQuery.of(context).padding.bottom + 12, // ✅ FIX HERE
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -514,6 +464,7 @@ class _AddItemsScreenState extends State<AddItemsScreen> {
                 onPressed: _finishSelection,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: primary,
+                  foregroundColor: Colors.white, // ✅ ADD THIS
                   padding:
                   const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   shape: RoundedRectangleBorder(
@@ -543,6 +494,7 @@ class ItemModel {
   final String name;
   final String? unit;
   final double salesPrice;
+  final double purchasePrice;
   final double? gstPercent;
   final double openingStock;
 
@@ -551,6 +503,7 @@ class ItemModel {
     required this.name,
     required this.unit,
     required this.salesPrice,
+    required this.purchasePrice, // ✅ ADD
     required this.openingStock,
     this.gstPercent,
   });
@@ -561,6 +514,7 @@ class ItemModel {
       name: json['name'],
       unit: json['unit'] ?? 'PCS',
       salesPrice: (json['sales_price'] ?? 0).toDouble(),
+      purchasePrice: (json['purchase_price'] ?? 0).toDouble(),
       openingStock: (json['opening_stock'] ?? 0).toDouble(),
       gstPercent: json['gst_percent'] != null
           ? (json['gst_percent']).toDouble()

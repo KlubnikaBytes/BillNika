@@ -7,7 +7,7 @@ import 'package:flutter_project/widgets/app_background.dart';
 
 
 
-const String baseUrl = "http://127.0.0.1:8000/api";
+const String baseUrl = 'http://192.168.1.11:8000/api';
 // const String baseUrl = "http://10.0.2.2:8000/api";
 
 
@@ -118,7 +118,7 @@ class _CashBankScreenState extends State<CashBankScreen> {
           const SizedBox(height: 24),
 
           // ================= CASH IN HAND =================
-          // ================= CASH IN HAND =================
+
           InkWell(
             borderRadius: BorderRadius.circular(12),
             onTap: () {

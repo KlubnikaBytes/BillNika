@@ -5,12 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:flutter_project/widgets/app_background.dart';
 
-const String baseUrl = "http://127.0.0.1:8000/api";
+import 'sales_report_screen.dart';
+
+const String baseUrl = 'http://192.168.1.11:8000/api';
 // const String baseUrl = "http://10.0.2.2:8000/api";
-
-
-
-
 
 
 class SalesSummaryScreen extends StatefulWidget {
@@ -428,171 +426,6 @@ class _SalesSummaryScreenState extends State<SalesSummaryScreen> {
     );
   }
 
-  // void _openPartySelector() {
-  //   // ✅ RESET SEARCH EVERY TIME
-  //   partySearchCtrl.clear();
-  //   filteredParties = List.from(parties);
-  //   showModalBottomSheet(
-  //     context: context,
-  //     isScrollControlled: true,
-  //     shape: const RoundedRectangleBorder(
-  //       borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-  //     ),
-  //       builder: (_) {
-  //         return StatefulBuilder(
-  //             builder: (context, modalSetState) {
-  //               return SafeArea(
-  //
-  //               child: Column(
-  //         children: [
-  //           // HEADER
-  //           Padding(
-  //             padding: const EdgeInsets.fromLTRB(16, 16, 8, 8),
-  //             child: Row(
-  //               children: [
-  //                 const Text(
-  //                   "Select Party",
-  //                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-  //                 ),
-  //                 const Spacer(),
-  //                 IconButton(
-  //                   icon: const Icon(Icons.close),
-  //                   onPressed: () => Navigator.pop(context),
-  //                 ),
-  //               ],
-  //             ),
-  //           ),
-  //
-  //           // SEARCH (optional – UI only)
-  //           Padding(
-  //             padding: const EdgeInsets.symmetric(horizontal: 16),
-  //             child:
-  //             TextField(
-  //               controller: partySearchCtrl,
-  //               onChanged: (value) {
-  //                 modalSetState(() {
-  //                   filteredParties = parties.where((p) {
-  //                     final name =
-  //                     p['party_name'].toString().toLowerCase();
-  //                     final phone =
-  //                     (p['contact_number'] ?? '').toString();
-  //
-  //                     return name.contains(value.toLowerCase()) ||
-  //                         phone.contains(value);
-  //                   }).toList();
-  //                 });
-  //               },
-  //
-  //               decoration: InputDecoration(
-  //                 hintText: "Search party by name or number",
-  //                 prefixIcon: const Icon(Icons.search),
-  //                 filled: true,
-  //                 fillColor: Colors.grey.shade100,
-  //                 border: OutlineInputBorder(
-  //                   borderRadius: BorderRadius.circular(12),
-  //                   borderSide: BorderSide.none,
-  //                 ),
-  //               ),
-  //             ),
-  //
-  //           ),
-  //
-  //           const SizedBox(height: 12),
-  //
-  //           Expanded(
-  //             child: ListView(
-  //               children: [
-  //                 // ALL PARTIES
-  //                 ListTile(
-  //                   title: const Text("All Parties"),
-  //                   trailing: Radio<int?>(
-  //                     value: null,
-  //                     groupValue: selectedPartyId,
-  //                     onChanged: (_) {
-  //                       Navigator.pop(context);
-  //                       setState(() {
-  //                         selectedPartyId = null;
-  //                         selectedPartyName = "All Parties";
-  //                       });
-  //                       fetchSales();
-  //                     },
-  //                   ),
-  //                 ),
-  //
-  //                 const Divider(),
-  //
-  //                 ...filteredParties.map((p) => InkWell(
-  //                   onTap: () {
-  //                     Navigator.pop(context);
-  //                     setState(() {
-  //                       selectedPartyId = p['id'];
-  //                       selectedPartyName = p['party_name'];
-  //                     });
-  //                     fetchSales();
-  //                   },
-  //                   child: Padding(
-  //                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-  //                     child: Row(
-  //                       crossAxisAlignment: CrossAxisAlignment.start,
-  //                       children: [
-  //                         // LEFT SIDE (NAME + PHONE)
-  //                         Expanded(
-  //                           child: Column(
-  //                             crossAxisAlignment: CrossAxisAlignment.start,
-  //                             children: [
-  //                               Text(
-  //                                 p['party_name'],
-  //                                 style: const TextStyle(
-  //                                   fontSize: 15,
-  //                                   fontWeight: FontWeight.w600,
-  //                                 ),
-  //                               ),
-  //                               const SizedBox(height: 4),
-  //                               Text(
-  //                                 p['contact_number'] ?? "",
-  //                                 style: const TextStyle(
-  //                                   fontSize: 13,
-  //                                   color: Colors.grey,
-  //                                 ),
-  //                               ),
-  //                             ],
-  //                           ),
-  //                         ),
-  //
-  //                         // RIGHT SIDE (AMOUNT + ARROW + RADIO)
-  //                         Row(
-  //                           mainAxisSize: MainAxisSize.min,
-  //                           children: [
-  //                             _partyBalance(p),
-  //                             const SizedBox(width: 10),
-  //                             Radio<int?>(
-  //                               value: p['id'],
-  //                               groupValue: selectedPartyId,
-  //                               onChanged: (_) {
-  //                                 Navigator.pop(context);
-  //                                 setState(() {
-  //                                   selectedPartyId = p['id'];
-  //                                   selectedPartyName = p['party_name'];
-  //                                 });
-  //                                 fetchSales();
-  //                               },
-  //                             ),
-  //                           ],
-  //                         ),
-  //                       ],
-  //                     ),
-  //                   ),
-  //                 )),
-  //
-  //
-  //               ],
-  //             ),
-  //           ),
-  //         ],
-  //       ),
-  //     ),
-  //   );
-  // }
 
   void _openPartySelector() {
     // ✅ RESET SEARCH EVERY TIME
@@ -850,7 +683,18 @@ class _SalesSummaryScreenState extends State<SalesSummaryScreen> {
             children: [
               TextButton(
                 onPressed: () {
-                  // TODO: Open full report / PDF
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => SalesReportScreen(
+                        range: selectedRange,
+                        status: selectedStatus,
+                        partyId: selectedPartyId,
+                        start: customStart,
+                        end: customEnd,
+                      ),
+                    ),
+                  );
                 },
                 child: const Text(
                   "VIEW FULL REPORT",

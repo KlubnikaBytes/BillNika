@@ -12,11 +12,18 @@ import 'cash_bank_screen.dart';
 import 'reports_screen.dart';
 import 'for_you_screen.dart';
 import 'more_screen.dart';
+import 'phone_login_screen.dart';
+import 'calculator_screen.dart';
+import 'invite_earn_screen.dart';
 import 'package:flutter_project/widgets/app_background.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'invoice_preview_screen.dart';
+import 'create_purchase_screen.dart'; // ✅ ADD THIS
 
 
 
-const String baseUrl = "http://127.0.0.1:8000/api";
+const String baseUrl = 'http://192.168.1.11:8000/api';
 
 // const String baseUrl = "http://10.0.2.2:8000/api";
 
@@ -45,6 +52,11 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List transactions = [];
   bool loadingTx = true;
+
+  int currentPage = 1;
+  bool isLoadingMore = false;
+  bool hasMore = true;
+  ScrollController scrollController = ScrollController();
 
   DateTime? fromDate;
   DateTime? toDate;
@@ -158,16 +170,58 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
 
-  Future<void> fetchHomeTransactions() async {
+  // Future<void> fetchHomeTransactions() async {
+  //   try {
+  //     final prefs = await SharedPreferences.getInstance();
+  //     final token = prefs.getString('token') ?? "";
+  //
+  //     String url = "$baseUrl/dashboard/transactions";
+  //
+  //     if (fromDate != null && toDate != null) {
+  //       url +=
+  //       "?from=${fromDate!.toIso8601String()}&to=${toDate!.toIso8601String()}";
+  //     }
+  //
+  //     final res = await http.get(
+  //       Uri.parse(url),
+  //       headers: {
+  //         "Authorization": "Bearer $token",
+  //         "Accept": "application/json",
+  //       },
+  //     );
+  //
+  //     final decoded = jsonDecode(res.body);
+  //
+  //     setState(() {
+  //       transactions = decoded['transactions'] ?? [];
+  //       loadingTx = false;
+  //     });
+  //   } catch (e) {
+  //     loadingTx = false;
+  //   }
+  // }
+
+  Future<void> fetchHomeTransactions({bool loadMore = false}) async {
+    if (isLoadingMore) return;
+
+    if (loadMore) {
+      isLoadingMore = true;
+      currentPage++;
+    } else {
+      currentPage = 1;
+      transactions.clear();
+      loadingTx = true;
+    }
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token') ?? "";
 
-      String url = "$baseUrl/dashboard/transactions";
+      String url = "$baseUrl/dashboard/transactions?page=$currentPage";
 
       if (fromDate != null && toDate != null) {
         url +=
-        "?from=${fromDate!.toIso8601String()}&to=${toDate!.toIso8601String()}";
+        "&from=${fromDate!.toIso8601String()}&to=${toDate!.toIso8601String()}";
       }
 
       final res = await http.get(
@@ -180,11 +234,16 @@ class _HomeScreenState extends State<HomeScreen> {
 
       final decoded = jsonDecode(res.body);
 
+      List newData = decoded['data'] ?? [];
+
       setState(() {
-        transactions = decoded['transactions'] ?? [];
+        transactions.addAll(newData);
+        hasMore = currentPage < (decoded['last_page'] ?? 1);
         loadingTx = false;
+        isLoadingMore = false;
       });
     } catch (e) {
+      isLoadingMore = false;
       loadingTx = false;
     }
   }
@@ -243,36 +302,338 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  // void handleBottomNavTap(BuildContext context, int index) {
-  //   if (index == 0) {
-  //     Navigator.pushReplacement(
-  //       context,
-  //       MaterialPageRoute(builder: (_) => const HomeScreen()),
-  //     );
-  //   } else if (index == 1) {
-  //     Navigator.pushReplacement(
-  //       context,
-  //       MaterialPageRoute(builder: (_) => const PartiesScreen()),
-  //     );
-  //   } else if (index == 2) {
-  //     Navigator.pushReplacement(
-  //       context,
-  //       MaterialPageRoute(builder: (_) => const ItemsScreen()),
-  //     );
-  //   }else if (index == 3) {
-  //     // ✅ FOR YOU
-  //     Navigator.pushReplacement(
-  //       context,
-  //       MaterialPageRoute(builder: (_) => const ForYouScreen()),
-  //     );
-  //   }else if (index == 4) {
-  //     // ✅ MORE
-  //     Navigator.pushReplacement(
-  //       context,
-  //       MaterialPageRoute(builder: (_) => const MoreScreen()),
-  //     );
-  //   }
-  // }
+  Future<void> _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token') ?? "";
+
+    try {
+      await http.post(
+        Uri.parse("$baseUrl/logout"),
+        headers: {
+          "Authorization": "Bearer $token",
+          "Accept": "application/json",
+        },
+      );
+    } catch (e) {
+      debugPrint("Logout API error: $e");
+    }
+
+    await prefs.remove('token');
+
+    await prefs.clear();
+
+    if (!mounted) return;
+
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      PhoneLoginScreen.routeName,
+          (route) => false,
+    );
+  }
+
+  Future<void> _confirmLogout() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("Logout"),
+        content: const Text("Are you sure you want to logout?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text("Logout"),
+          ),
+        ],
+      ),
+    );
+
+    if (ok == true) {
+      _logout();
+    }
+  }
+
+  Future<void> _shareOnWhatsApp(Map tx) async {
+    try {
+      final String name = tx['party_name'] ?? '';
+      final String invoiceNo = tx['number'] ?? '';
+      final String amount = tx['balance_amount']?.toString() ?? '0';
+
+      // ✅ SAFE ID FIX
+      final int? invoiceId = tx['invoice_id'] is int
+          ? tx['invoice_id']
+          : int.tryParse(tx['invoice_id']?.toString() ?? '');
+
+      if (invoiceId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Invalid invoice ID")),
+        );
+        return;
+      }
+
+      final String? link = await _getPaymentLink(invoiceId);
+
+      if (link == null || link.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Payment link not available")),
+        );
+        return;
+      }
+
+      final String message = Uri.encodeComponent(
+          "Hello $name,\n"
+              "Invoice #$invoiceNo\n"
+              "Amount Due: ₹$amount\n\n"
+              "Pay here:\n$link\n\n"
+              "Thank you!");
+
+      final Uri url = Uri.parse("https://wa.me/?text=$message");
+
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
+  }
+
+
+  Future<String?> _getPaymentLink(int invoiceId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token') ?? "";
+
+      final res = await http.get(
+        Uri.parse("$baseUrl/invoices/$invoiceId"), // ✅ adjust if needed
+        headers: {
+          "Authorization": "Bearer $token",
+          "Accept": "application/json",
+        },
+      );
+
+      final data = jsonDecode(res.body);
+
+      return data['invoice']?['payment_link']; // ✅ same as preview screen
+    } catch (e) {
+      return null;
+    }
+  }
+
+
+  Future<void> _shareReceiptOnWhatsApp(Map tx) async {
+    try {
+      final String name = tx['party_name'] ?? '';
+      final String receiptNo = tx['number'] ?? '';
+      final String amount = tx['amount']?.toString() ?? '0';
+
+      final String message = Uri.encodeComponent(
+          "Hello $name,\n\n"
+              "Payment Received ✔\n"
+              "Receipt #$receiptNo\n"
+              "Amount: ₹$amount\n\n"
+              "Thank you!"
+      );
+
+      final Uri url = Uri.parse("https://wa.me/?text=$message");
+
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
+  }
+
+  void _openAddMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) {
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+
+                // ================= HEADER =================
+                Row(
+                  children: [
+                    const Text(
+                      "Sales Transactions",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context),
+                    )
+                  ],
+                ),
+
+                const SizedBox(height: 10),
+
+                // ================= SALES =================
+                GridView.count(
+                  crossAxisCount: 4,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+
+                    _menuItem(Icons.receipt_long, "Bill / Invoice", () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const CreateInvoiceScreen()),
+                      );
+                    }),
+
+                    _menuItem(Icons.payments, "Received\nPayment", () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const RecordPaymentScreen()),
+                      );
+                    }),
+
+                    _menuItem(Icons.assignment_return, "Sales Return", () {}),
+
+                    _menuItem(Icons.note_add, "Credit Note", () {}),
+
+                    _menuItem(Icons.description, "Quotation/\nEstimate", () {}),
+
+                    _menuItem(Icons.local_shipping, "Delivery\nChallan", () {}),
+
+                    _menuItem(Icons.request_quote, "Proforma\nInvoice", () {}),
+
+                    _menuItem(Icons.calendar_today, "Automated\nBill", () {}),
+                  ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // ================= COUNTER =================
+                _menuItem(Icons.flash_on, "Counter", () {}),
+
+                const SizedBox(height: 16),
+                const Divider(),
+
+                // ================= PURCHASE =================
+                const SizedBox(height: 10),
+                const Text(
+                  "Purchase Transactions",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                GridView.count(
+                  crossAxisCount: 4,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  children: [
+
+                    _menuItem(Icons.shopping_cart, "Purchase", () {
+                      Navigator.pop(context); // close bottom sheet
+
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const CreatePurchaseScreen(),
+                        ),
+                      );
+                    }),
+
+                    _menuItem(Icons.currency_rupee, "Payment Out", () {}),
+
+                    _menuItem(Icons.undo, "Purchase\nReturn", () {}),
+
+                    _menuItem(Icons.note, "Debit Note", () {}),
+
+                    _menuItem(Icons.list_alt, "Purchase\nOrder", () {}),
+
+                    _menuItem(Icons.qr_code_scanner, "Scan &\nRecord Bills", () {}),
+                  ],
+                ),
+
+                const SizedBox(height: 16),
+                const Divider(),
+
+                // ================= OTHER =================
+                const SizedBox(height: 10),
+                const Text(
+                  "Other Transactions",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+
+                const SizedBox(height: 10),
+
+                _menuItem(Icons.account_balance_wallet, "Expense", () {}),
+
+                const SizedBox(height: 20),
+
+                // ================= BOTTOM CLOSE =================
+                Center(
+                  child: GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.close),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _menuItem(IconData icon, String title, VoidCallback onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F5E9),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: Colors.green, size: 24),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12),
+          ),
+        ],
+      ),
+    );
+  }
 
   void handleBottomNavTap(BuildContext context, int index) {
     Widget target;
@@ -315,6 +676,15 @@ class _HomeScreenState extends State<HomeScreen> {
     fetchDashboardTotals(); // 🔥 CALL HERE
     fetchHomeTransactions(); // ✅ ADD THIS
     fetchBusinessInfo(); // ✅ ADD THIS
+
+    scrollController.addListener(() {
+      if (scrollController.position.pixels >=
+          scrollController.position.maxScrollExtent - 200) {
+        if (hasMore && !isLoadingMore) {
+          fetchHomeTransactions(loadMore: true);
+        }
+      }
+    });
   }
 
   Widget build(BuildContext context) {
@@ -329,7 +699,8 @@ class _HomeScreenState extends State<HomeScreen> {
         elevation: 0.4,
         automaticallyImplyLeading: false,
         titleSpacing: 0,
-        title: Row(
+        title:
+        Row(
           children: [
             const SizedBox(width: 12),
             Flexible(
@@ -347,11 +718,72 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const Icon(Icons.keyboard_arrow_down, color: Colors.black),
             const Spacer(),
-            Icon(Icons.calculate_outlined, color: primary, size: 26),
+            // // Icon(Icons.calculate_outlined, color: primary, size: 26),
+            // GestureDetector(
+            //   onTap: () {
+            //     Navigator.push(
+            //       context,
+            //       MaterialPageRoute(builder: (_) => const CalculatorScreen()),
+            //     );
+            //   },
+            //   child: Icon(Icons.calculate_outlined, color: primary, size: 26),
+            // ),
+
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CalculatorScreen()),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEDEBFF), // light purple bg
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.calculate_rounded,
+                  color: Color(0xFF4C3FF0), // primary purple
+                  size: 24,
+                ),
+              ),
+            ),
             const SizedBox(width: 10),
-            Icon(Icons.card_giftcard, color: Colors.orange, size: 26),
+            GestureDetector(
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const InviteEarnScreen()),
+                );
+              },
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF3E0), // light orange bg
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.card_giftcard_rounded,
+                  color: Colors.orange,
+                  size: 20,
+                ),
+              ),
+            ),
             const SizedBox(width: 10),
-            Icon(Icons.document_scanner_outlined, color: Colors.red, size: 26),
+            Icon(Icons.desktop_windows_rounded, color: Colors.red, size: 26),
+            const SizedBox(width: 12),
+
+
+            GestureDetector(
+              onTap: _confirmLogout,
+              child: const Icon(
+                Icons.logout,
+                color: Colors.red,
+                size: 24,
+              ),
+            ),
+
             const SizedBox(width: 12),
           ],
         ),
@@ -360,291 +792,7 @@ class _HomeScreenState extends State<HomeScreen> {
       // ===============================
 // BODY CONTENT
 // ===============================
-//       body: Stack(
-//         children: [
-//           // 🍓 + 🔴 BACKGROUND (single painter)
-//           Positioned.fill(
-//             child: CustomPaint(
-//               painter: StrawberryPatternPainter(),
-//             ),
-//           ),
-//
-//           // 🍓 2️⃣ YOUR EXISTING CONTENT (UNCHANGED)
-//           SingleChildScrollView(
-//             padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
-//             child: Column(
-//               crossAxisAlignment: CrossAxisAlignment.start,
-//               children: [
-//                 // Banner (NORMAL — no CustomPaint here)
-//                 Container(
-//                   height: 130,
-//                   width: double.infinity,
-//                   decoration: BoxDecoration(
-//                     color: const Color(0xFF0066CC),
-//                     borderRadius: BorderRadius.circular(12),
-//                   ),
-//                   padding: const EdgeInsets.all(16),
-//                   child: Row(
-//                     children: [
-//                       const Expanded(
-//                         child: Text(
-//                           "Now generate GST e-Invoice & e-Way Bills on Mobile easily!\n\nTRY NOW ➜",
-//                           style: TextStyle(
-//                             color: Colors.white,
-//                             fontSize: 15,
-//                             fontWeight: FontWeight.w600,
-//                           ),
-//                         ),
-//                       ),
-//                       Image.asset(
-//                         "assets/invoice_sample.png",
-//                         height: 90,
-//                       ),
-//                     ],
-//                   ),
-//                 ),
-//             const SizedBox(height: 16),
-//
-//             Row(
-//               children: [
-//                 _buildAmountCard(
-//                   loadingTotals ? "₹ --" : "₹ ${toCollect.toStringAsFixed(0)}",
-//                   "To Collect",
-//                   Colors.green,
-//                   onTap: () {
-//                     Navigator.push(
-//                       context,
-//                       MaterialPageRoute(
-//                         builder: (_) => const PartiesScreen(initialFilter: 'receive'),
-//                       ),
-//                     );
-//                   },
-//                 ),
-//                 const SizedBox(width: 12),
-//                 _buildAmountCard(
-//                   loadingTotals ? "₹ --" : "₹ ${toPay.toStringAsFixed(0)}",
-//                   "To Pay",
-//                   Colors.red,
-//                   onTap: () {
-//                     Navigator.push(
-//                       context,
-//                       MaterialPageRoute(
-//                         builder: (_) => const PartiesScreen(initialFilter: 'pay'),
-//                       ),
-//                     );
-//                   },
-//                 ),
-//               ],
-//             ),
-//
-//
-//
-//             const SizedBox(height: 12),
-//
-//             // Row: Stock Value + Week Sale
-//             Row(
-//               children: [
-//                 // _buildSimpleCard("Stock Value", "Value of Items"),
-//                 _buildSimpleCard(
-//                   "Stock Value",
-//                   "Value of Items",
-//                   onTap: () {
-//                     Navigator.push(
-//                       context,
-//                       MaterialPageRoute(
-//                         builder: (_) => const StockSummaryScreen(),
-//                       ),
-//                     );
-//                   },
-//                 ),
-//
-//                 const SizedBox(width: 12),
-//
-//                 _buildSimpleCard(
-//                   loadingTotals
-//                       ? "₹ --"
-//                       : "₹ ${thisWeekSales.toStringAsFixed(0)}",
-//                   "This week's sale",
-//                   onTap: () {
-//                     Navigator.push(
-//                       context,
-//                       MaterialPageRoute(
-//                         builder: (_) => const SalesSummaryScreen(),
-//                       ),
-//                     );
-//                   },
-//                 ),
-//
-//
-//               ],
-//             ),
-//
-//             const SizedBox(height: 12),
-//
-//             // Row: Total Balance + Reports
-//             Row(
-//               children: [
-//                 _buildSimpleCard(
-//                   "Total Balance",
-//                   "Cash + Bank Balance",
-//                   onTap: () {
-//                     Navigator.push(
-//                       context,
-//                       MaterialPageRoute(
-//                         builder: (_) => const CashBankScreen(),
-//                       ),
-//                     );
-//                   },
-//                 ),
-//
-//                 const SizedBox(width: 12),
-//                 _buildSimpleCard(
-//                   "Reports",
-//                   "Sales, Party, GST...",
-//                   onTap: () {
-//                     Navigator.push(
-//                       context,
-//                       MaterialPageRoute(builder: (_) => const ReportsScreen()),
-//                     );
-//                   },
-//                 ),
-//
-//               ],
-//             ),
-//
-//             const SizedBox(height: 24),
-//
-//             // Subscription
-//             ListTile(
-//               minLeadingWidth: 0,
-//               contentPadding: EdgeInsets.zero,
-//               leading: const Icon(Icons.workspace_premium, color: Colors.orange),
-//               title: const Text(
-//                 "myBillBook Subscription Plan",
-//                 style: TextStyle(
-//                   fontSize: 16,
-//                   fontWeight: FontWeight.w700,
-//                 ),
-//               ),
-//               trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-//             ),
-//
-//             const SizedBox(height: 10),
-//
-//             const Text(
-//               "Transactions",
-//               style: TextStyle(
-//                 fontSize: 18,
-//                 fontWeight: FontWeight.w700,
-//               ),
-//             ),
-//             const SizedBox(height: 4),
-//
-//             Row(
-//               children: [
-//                 const Spacer(),
-//                 GestureDetector(
-//                   onTap: _openDateFilterSheet,
-//                   child: Text(
-//                     selectedRangeLabel,
-//                     style: const TextStyle(
-//                       color: Colors.blue,
-//                       fontWeight: FontWeight.w600,
-//                       fontSize: 13,
-//                     ),
-//                   ),
-//                 ),
-//               ],
-//             ),
-//
-//
-//             const SizedBox(height: 12),
-//
-//             // Transaction Card
-//
-//             loadingTx
-//                 ? const Center(child: CircularProgressIndicator())
-//                 : transactions.isEmpty
-//                 ? const Center(
-//               child: Text(
-//                 "No transactions yet",
-//                 style: TextStyle(
-//                   fontSize: 15,
-//                   color: Colors.grey,
-//                   fontWeight: FontWeight.w500,
-//                 ),
-//               ),
-//             )
-//                 : Column(
-//               children: transactions.map((tx) {
-//                 return _buildTransactionCard(tx);
-//               }).toList(),
-//             ),
-//
-//           ],
-//         ),
-//       ),
-//
-//             Positioned(
-//               left: 0,
-//               right: 0,
-//               bottom: 20, // ✅ closer to bottom navigation
-//               child: Padding(
-//                 padding: const EdgeInsets.symmetric(horizontal: 16),
-//                 child: Row(
-//                   mainAxisAlignment: MainAxisAlignment.center,
-//                   children: [
-//                     _roundAction(
-//                       "Received Payment",
-//                       Colors.black,
-//                           () {
-//                         Navigator.push(
-//                           context,
-//                           MaterialPageRoute(
-//                             builder: (_) => const RecordPaymentScreen(),
-//                           ),
-//                         );
-//                       },
-//                     ),
-//
-//                     const SizedBox(width: 12), // ✅ small gap
-//
-//                     Container(
-//                       padding: const EdgeInsets.all(16),
-//                       decoration: const BoxDecoration(
-//                         color: Colors.green,
-//                         shape: BoxShape.circle,
-//                         boxShadow: [
-//                           BoxShadow(
-//                             blurRadius: 10,
-//                             color: Colors.black26,
-//                           ),
-//                         ],
-//                       ),
-//                       child: const Icon(Icons.add, color: Colors.white, size: 28),
-//                     ),
-//
-//                     const SizedBox(width: 12), // ✅ small gap
-//
-//                     _roundAction(
-//                       "+ Bill / Invoice",
-//                       primary,
-//                           () {
-//                         Navigator.push(
-//                           context,
-//                           MaterialPageRoute(
-//                             builder: (_) => const CreateInvoiceScreen(),
-//                           ),
-//                         );
-//                       },
-//                     ),
-//                   ],
-//                 ),
-//               ),
-//             ),
-//
-//           ],
-//       ),
+
 
       body: AppBackground(
         child: Stack(
@@ -811,11 +959,29 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                   )
-                      : Column(
-                    children: transactions
-                        .map((tx) => _buildTransactionCard(tx))
-                        .toList(),
-                  ),
+                      :
+                  // Column(
+                  //   children: transactions
+                  //       .map((tx) => _buildTransactionCard(tx))
+                  //       .toList(),
+                  // ),
+                  SizedBox(
+                    height: 400, // or adjust
+                    child: ListView.builder(
+                      controller: scrollController,
+                      itemCount: transactions.length + (hasMore ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index < transactions.length) {
+                          return _buildTransactionCard(transactions[index]);
+                        } else {
+                          return const Padding(
+                            padding: EdgeInsets.all(16),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
+                      },
+                    ),
+                  )
                 ],
               ),
             ),
@@ -830,27 +996,47 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+
+
                     _roundAction(
                       "Received Payment",
                       Colors.black,
-                          () {
-                        Navigator.push(
+                          () async {
+                        final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
                             builder: (_) => const RecordPaymentScreen(),
                           ),
                         );
+
+                        // 🔥 MAIN FIX (ADD THIS)
+                        if (result == true) {
+                          fetchHomeTransactions();   // refresh list
+                          fetchDashboardTotals();    // optional (update totals also)
+                        }
                       },
                     ),
                     const SizedBox(width: 12),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: const BoxDecoration(
-                        color: Colors.green,
-                        shape: BoxShape.circle,
+                    // Container(
+                    //   padding: const EdgeInsets.all(16),
+                    //   decoration: const BoxDecoration(
+                    //     color: Colors.green,
+                    //     shape: BoxShape.circle,
+                    //   ),
+                    //   child:
+                    //   const Icon(Icons.add, color: Colors.white, size: 28),
+                    // ),
+
+                    GestureDetector(
+                      onTap: _openAddMenu, // ✅ IMPORTANT
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: const BoxDecoration(
+                          color: Colors.green,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.add, color: Colors.white, size: 28),
                       ),
-                      child:
-                      const Icon(Icons.add, color: Colors.white, size: 28),
                     ),
                     const SizedBox(width: 12),
                     _roundAction(
@@ -880,37 +1066,6 @@ class _HomeScreenState extends State<HomeScreen> {
       // ===============================
       // BOTTOM NAVIGATION
       // ===============================
-
-
-      // bottomNavigationBar: BottomNavigationBar(
-      //   currentIndex: navIndex,
-      //   onTap: (index) {
-      //     setState(() => navIndex = index);
-      //
-      //     if (index == 1) {
-      //       Navigator.push(
-      //         context,
-      //         MaterialPageRoute(builder: (_) => const PartiesScreen()),
-      //       );
-      //     }
-      //
-      //     if (index == 2) {
-      //       Navigator.push(
-      //         context,
-      //         MaterialPageRoute(builder: (_) => const ItemsScreen()),
-      //       );
-      //     }
-      //   },
-      //   selectedItemColor: primary,
-      //   unselectedItemColor: Colors.grey,
-      //   items: const [
-      //     BottomNavigationBarItem(icon: Icon(Icons.home), label: "Dashboard"),
-      //     BottomNavigationBarItem(icon: Icon(Icons.people), label: "Parties"),
-      //     BottomNavigationBarItem(icon: Icon(Icons.inventory), label: "Items"),
-      //     BottomNavigationBarItem(icon: Icon(Icons.receipt_long), label: "For You"),
-      //     BottomNavigationBarItem(icon: Icon(Icons.more_horiz), label: "More"),
-      //   ],
-      // ),
 
 
     bottomNavigationBar: BottomNavigationBar(
@@ -1165,15 +1320,114 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(subTitle, style: const TextStyle(color: Colors.blue)),
                 const SizedBox(height: 2),
                 Text(dateLine, style: const TextStyle(color: Colors.black54)),
+                // const SizedBox(height: 10),
+                // if (isInvoice)
+                //   Row(
+                //     children: const [
+                //       Text("₹ Record Manually",
+                //           style: TextStyle(color: Colors.blue)),
+                //       SizedBox(width: 6),
+                //       Icon(Icons.arrow_forward_ios,
+                //           size: 14, color: Colors.blue),
+                //     ],
+                //   ),
+
                 const SizedBox(height: 10),
+
+// ================= ACTION BUTTONS =================
+                if (!isInvoice)
+                  GestureDetector(
+                    onTap: () {
+                      _shareReceiptOnWhatsApp(tx);
+                    },
+                    child: Row(
+                      children: const [
+                        Icon(Icons.reply, size: 16, color: Colors.deepPurple),
+                        SizedBox(width: 6),
+                        Text(
+                          "Send Receipt",
+                          style: TextStyle(
+                            color: Colors.deepPurple,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                 if (isInvoice)
                   Row(
-                    children: const [
-                      Text("₹ Record Manually",
-                          style: TextStyle(color: Colors.blue)),
-                      SizedBox(width: 6),
-                      Icon(Icons.arrow_forward_ios,
-                          size: 14, color: Colors.blue),
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      // 👉 Record Manually
+                      GestureDetector(
+                        onTap: () async {
+                          final result = await Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const RecordPaymentScreen(),
+                            ),
+                          );
+
+                          if (result == true) {
+                            fetchHomeTransactions();
+                            fetchDashboardTotals();
+                          }
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            Text(
+                              "₹ Record Manually",
+                              style: TextStyle(
+                                color: Colors.deepPurple,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            SizedBox(width: 6),
+                            Icon(Icons.arrow_forward_ios,
+                                size: 14, color: Colors.deepPurple),
+                          ],
+                        ),
+                      ),
+
+                      // 👉 WhatsApp Share Button
+                      Flexible(
+                        child: GestureDetector(
+                          onTap: () {
+                            _shareOnWhatsApp(tx);
+                          },
+                          child: Container(
+                            padding:
+                            const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE6F4EA),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: const [
+                                FaIcon(
+                                  FontAwesomeIcons.whatsapp, // ✅ FIXED
+                                  size: 14,
+                                  color: Colors.green,
+                                ),
+                                SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    "Share Payment Link",
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      color: Colors.green,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
               ],
@@ -1284,15 +1538,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             : Icons.radio_button_unchecked,
                         color: isSelected ? primary : Colors.grey,
                       ),
-                      // onTap: () {
-                      //   // ✅ update bottom sheet UI immediately
-                      //   setModalState(() {
-                      //     selectedRangeLabel = label.toUpperCase();
-                      //   });
-                      //
-                      //   // ✅ update main screen + fetch data
-                      //   _applyRange(from, to, label.toUpperCase());
-                      // },
+
 
                       onTap: () {
                         // update bottom sheet UI instantly
@@ -1330,11 +1576,6 @@ class _HomeScreenState extends State<HomeScreen> {
       },
     );
   }
-
-
-
-
-
 
   Widget _dateOption({
     required String title,

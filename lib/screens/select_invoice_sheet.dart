@@ -6,7 +6,7 @@ import '../models/party_model.dart';
 import 'package:intl/intl.dart';
 
 
-const String baseUrl = "http://127.0.0.1:8000/api";
+const String baseUrl = 'http://192.168.1.11:8000/api';
 // const String baseUrl = "http://10.0.2.2:8000/api";
 
 
@@ -166,7 +166,11 @@ class _SelectInvoiceSheetState extends State<SelectInvoiceSheet> {
   Widget build(BuildContext context) {
     final isPay = widget.party.openingBalanceType == 'pay';
     return SafeArea(
-      child: Column(
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom, // 🔥 KEY LINE
+          ),
+          child: Column(
         children: [
 
           // ================= HEADER =================
@@ -353,6 +357,7 @@ class _SelectInvoiceSheetState extends State<SelectInvoiceSheet> {
 
         ],
       ),
+        ),
     );
   }
 
