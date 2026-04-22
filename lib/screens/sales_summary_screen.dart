@@ -7,7 +7,7 @@ import 'package:flutter_project/widgets/app_background.dart';
 
 import 'sales_report_screen.dart';
 
-const String baseUrl = 'http://192.168.1.11:8000/api';
+const String baseUrl = 'http://192.168.1.12:8000/api';
 // const String baseUrl = "http://10.0.2.2:8000/api";
 
 
@@ -170,6 +170,30 @@ class _SalesSummaryScreenState extends State<SalesSummaryScreen> {
     };
 
 
+  }
+
+  String formatInvoiceDate(String iso) {
+    final d = DateTime.parse(iso);
+
+    const months = [
+      "Jan","Feb","Mar","Apr","May","Jun",
+      "Jul","Aug","Sep","Oct","Nov","Dec"
+    ];
+
+    return "${d.day.toString().padLeft(2, '0')} ${months[d.month - 1]} ${d.year}";
+  }
+
+  String dueText(String? dueDate) {
+    if (dueDate == null) return "";
+
+    final due = DateTime.parse(dueDate);
+    final now = DateTime.now();
+
+    final diff = due.difference(now).inDays;
+
+    if (diff > 0) return "Due in $diff day(s)";
+    if (diff == 0) return "Due today";
+    return "${diff.abs()} day(s) overdue";
   }
 
   Future<void> _pickCustomRange() async {
@@ -713,6 +737,18 @@ class _SalesSummaryScreenState extends State<SalesSummaryScreen> {
   Widget _invoiceCard(dynamic inv) {
     final isPaid = inv['status'] == 'paid';
 
+    // ✅ MOVE LOGIC HERE (TOP)
+    String dateLine;
+
+    if (isPaid) {
+      dateLine = formatInvoiceDate(inv['invoice_date']);
+    } else {
+      final due = dueText(inv['due_date']);
+      dateLine = due.isEmpty
+          ? formatInvoiceDate(inv['invoice_date'])
+          : "${formatInvoiceDate(inv['invoice_date'])} • $due";
+    }
+
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(16),
@@ -746,10 +782,22 @@ class _SalesSummaryScreenState extends State<SalesSummaryScreen> {
                   style: const TextStyle(color: Colors.grey),
                 ),
                 const SizedBox(height: 4),
+                // Text(
+                //   inv['invoice_date'],
+                //   style: const TextStyle(
+                //     color: Colors.grey,
+                //     fontSize: 12,
+                //   ),
+                // ),
+                // ✅ ONLY WIDGET HERE
                 Text(
-                  inv['invoice_date'],
-                  style: const TextStyle(
-                    color: Colors.grey,
+                  dateLine,
+                  style: TextStyle(
+                    color: isPaid
+                        ? Colors.grey
+                        : dueText(inv['due_date']).contains("overdue")
+                        ? Colors.red
+                        : Colors.orange,
                     fontSize: 12,
                   ),
                 ),

@@ -132,9 +132,16 @@ import 'models/business_details_model.dart';
 import 'screens/phone_login_screen.dart';
 import 'screens/otp_screen.dart';
 import 'screens/home_screen.dart';
+import 'package:media_store_plus/media_store_plus.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // ✅ ADD THIS LINE (VERY IMPORTANT)
+  await MediaStore.ensureInitialized();
+  // ✅ REQUIRED (fixes your current error)
+  MediaStore.appFolder = "Billnika";
+
 
   // ------------------------------
   // AUTO LOGIN CHECK

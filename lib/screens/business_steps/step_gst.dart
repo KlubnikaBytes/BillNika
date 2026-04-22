@@ -18,12 +18,35 @@ class _StepGSTState extends State<StepGST> {
   final TextEditingController _panCin = TextEditingController(); // PAN / CIN
   final TextEditingController _tradeUdyam = TextEditingController(); // 🔥 NEW FIELD
 
+  final _formKey = GlobalKey<FormState>();
+
+  bool isValidGST(String gst) {
+    final regex = RegExp(r'^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$');
+    return regex.hasMatch(gst);
+  }
+
+  bool isValidPAN(String pan) {
+    final regex = RegExp(r'^[A-Z]{5}[0-9]{4}[A-Z]{1}$');
+    return regex.hasMatch(pan);
+  }
+
+  bool isValidCIN(String cin) {
+    final regex = RegExp(r'^[A-Z]{1}[0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$');
+    return regex.hasMatch(cin);
+  }
+
+  bool isValidUdyam(String udyam) {
+    final regex = RegExp(r'^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$');
+    return regex.hasMatch(udyam);
+  }
+
   @override
   Widget build(BuildContext context) {
     final primary = const Color(0xFF4C3FF0);
 
     return Scaffold(
       backgroundColor: Colors.white,
+      resizeToAvoidBottomInset: true, // ✅ ADD THIS
 
       appBar: AppBar(
         backgroundColor: Colors.white,
@@ -34,7 +57,19 @@ class _StepGSTState extends State<StepGST> {
 
       body: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Column(
+        // child: Form(
+        //   key: _formKey,
+        //   child: Column(
+          child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    minHeight: MediaQuery.of(context).size.height,
+                  ),
+                  child: IntrinsicHeight(
+                    child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
@@ -68,8 +103,27 @@ class _StepGSTState extends State<StepGST> {
                   style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
               const SizedBox(height: 8),
 
-              TextField(
+              // TextField(
+              //   controller: _gst,
+              //   decoration: InputDecoration(
+              //     hintText: "Eg: 22AAAAA0000A1Z5",
+              //     hintStyle: const TextStyle(color: Colors.grey),
+              //     contentPadding:
+              //     const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              //     border: OutlineInputBorder(
+              //       borderRadius: BorderRadius.circular(10),
+              //       borderSide: BorderSide(color: Colors.grey.shade300),
+              //     ),
+              //   ),
+              // ),
+
+              TextFormField(
                 controller: _gst,
+                onChanged: (_) {
+                  _formKey.currentState?.validate();
+                },
+
+                textCapitalization: TextCapitalization.characters,
                 decoration: InputDecoration(
                   hintText: "Eg: 22AAAAA0000A1Z5",
                   hintStyle: const TextStyle(color: Colors.grey),
@@ -80,6 +134,17 @@ class _StepGSTState extends State<StepGST> {
                     borderSide: BorderSide(color: Colors.grey.shade300),
                   ),
                 ),
+                validator: (value) {
+                  if (_gstRegistered != true) return null; // ✅ important
+                    if (value == null || value.isEmpty) {
+                      return "GST number required";
+                    }
+                    if (!isValidGST(value.toUpperCase())) {
+                      return "Invalid GST format";
+                    }
+
+                  return null;
+                },
               ),
 
               const SizedBox(height: 16),
@@ -95,17 +160,46 @@ class _StepGSTState extends State<StepGST> {
               ),
               const SizedBox(height: 8),
 
-              TextField(
+              // TextField(
+              //   controller: _panCin,
+              //   decoration: InputDecoration(
+              //     hintText: "Enter PAN Number or CIN",
+              //     contentPadding:
+              //     const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              //     border: OutlineInputBorder(
+              //       borderRadius: BorderRadius.circular(10),
+              //       borderSide: BorderSide(color: Colors.grey.shade300),
+              //     ),
+              //   ),
+              // ),
+
+              TextFormField(
                 controller: _panCin,
+                onChanged: (_) {
+                  _formKey.currentState?.validate();
+                },
+                textCapitalization: TextCapitalization.characters,
                 decoration: InputDecoration(
-                  hintText: "Enter PAN Number or CIN",
-                  contentPadding:
-                  const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  hintText: "Enter PAN or CIN",
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
                   ),
                 ),
+                validator: (value) {
+    if (_gstRegistered != false) return null; // ✅ important
+
+    if (value == null || value.isEmpty) {
+                      return "Required";
+                    }
+
+                    final v = value.toUpperCase();
+
+                    if (!isValidPAN(v) && !isValidCIN(v)) {
+                      return "Invalid PAN or CIN";
+
+                  }
+                  return null;
+                },
               ),
 
               const SizedBox(height: 18),
@@ -116,17 +210,47 @@ class _StepGSTState extends State<StepGST> {
               ),
               const SizedBox(height: 8),
 
-              TextField(
+              // TextField(
+              //   controller: _tradeUdyam,
+              //   decoration: InputDecoration(
+              //     hintText: "Enter Trade License or Udyam Number",
+              //     contentPadding:
+              //     const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+              //     border: OutlineInputBorder(
+              //       borderRadius: BorderRadius.circular(10),
+              //       borderSide: BorderSide(color: Colors.grey.shade300),
+              //     ),
+              //   ),
+              // ),
+
+              TextFormField(
                 controller: _tradeUdyam,
+                onChanged: (_) {
+                  _formKey.currentState?.validate();
+                },
+                textCapitalization: TextCapitalization.characters,
                 decoration: InputDecoration(
-                  hintText: "Enter Trade License or Udyam Number",
-                  contentPadding:
-                  const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  hintText: "Enter Trade License or Udyam",
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
                   ),
                 ),
+                validator: (value) {
+    if (_gstRegistered != false) return null; // ✅ important
+
+    if (value == null || value.isEmpty) {
+                      return "Required";
+                    }
+
+                    final v = value.toUpperCase();
+
+                    // Allow anything OR strict udyam
+                    if (!isValidUdyam(v) && v.length < 5) {
+                      return "Invalid Trade/Udyam";
+                    }
+
+                  return null;
+                },
               ),
 
               const SizedBox(height: 16),
@@ -141,7 +265,7 @@ class _StepGSTState extends State<StepGST> {
               ),
             ),
 
-            const Spacer(),
+            const SizedBox(height: 20),
 
             Row(
               children: const [
@@ -171,6 +295,10 @@ class _StepGSTState extends State<StepGST> {
                 onPressed: _gstRegistered == null
                     ? null
                     : () {
+                  if (!_formKey.currentState!.validate()) {
+                    return; // ❌ stop if invalid GST
+                  }
+
                   widget.model.gstRegistered = _gstRegistered!;
                   widget.model.gstNumber =
                   _gstRegistered == true ? _gst.text : null;
@@ -219,6 +347,10 @@ class _StepGSTState extends State<StepGST> {
           ],
         ),
       ),
+      ),
+              ),
+          ),
+      ),
     );
   }
 
@@ -228,8 +360,21 @@ class _StepGSTState extends State<StepGST> {
 
     return Expanded(
       child: InkWell(
+        // onTap: () {
+        //   setState(() => _gstRegistered = value);
+        // },
         onTap: () {
-          setState(() => _gstRegistered = value);
+          setState(() {
+            _gstRegistered = value;
+
+            // ✅ CLEAR FIELDS
+            _gst.clear();
+            _panCin.clear();
+            _tradeUdyam.clear();
+
+            // ✅ RESET VALIDATION STATE
+            _formKey.currentState?.reset();
+          });
         },
         child: Container(
           height: 60,

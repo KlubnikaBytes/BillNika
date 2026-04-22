@@ -12,7 +12,7 @@ import 'package:path_provider/path_provider.dart';
 import 'dart:io';
 
 
-const String baseUrl = 'http://192.168.1.11:8000/api';
+const String baseUrl = 'http://192.168.1.12:8000/api';
 
 class StockReportScreen extends StatefulWidget {
   const StockReportScreen({super.key});

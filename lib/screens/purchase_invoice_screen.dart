@@ -159,9 +159,18 @@
 //   }
 // }
 
-
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:flutter/services.dart';
+import 'package:media_store_plus/media_store_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
+import 'home_screen.dart';
 
 class PurchaseInvoiceScreen extends StatelessWidget {
   final Map data;
@@ -182,7 +191,16 @@ class PurchaseInvoiceScreen extends StatelessWidget {
     double received = (data["received_amount"] ?? 0).toDouble();
     double balance = (data["balance_amount"] ?? 0).toDouble();
 
-    return Scaffold(
+    return WillPopScope(
+        onWillPop: () async {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+                (route) => false,
+          );
+          return false; // ⛔ stop default back
+        },
+        child: Scaffold(
       backgroundColor: Colors.grey.shade100,
 
       appBar: AppBar(
@@ -190,6 +208,18 @@ class PurchaseInvoiceScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         elevation: 0.5,
+
+        // ✅ THIS LINE ADD
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+                  (route) => false,
+            );
+          },
+        ),
       ),
 
       body: ListView(
@@ -383,11 +413,306 @@ class PurchaseInvoiceScreen extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _iconBtn(Icons.print, "Print"),
-              _iconBtn(Icons.download, "Download"),
-              _iconBtn(Icons.share, "Share"),
+              bottomBtn(
+                Icons.print,
+                "Print",
+                onTap: () => _printPurchase(context),
+              ),
+              bottomBtn(
+                Icons.download,
+                "Download",
+                onTap: () => _downloadPurchase(context),
+              ),
+              bottomBtn(
+                Icons.share,
+                "Share",
+                onTap: () => _sharePurchase(context),
+              ),
+              // ✅ NEW DONE BUTTON
+              InkWell(
+                onTap: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const HomeScreen()),
+                        (route) => false,
+                  );
+                },
+                child: Column(
+                  children: const [
+                    Icon(Icons.check_circle, size: 28, color: Colors.green),
+                    SizedBox(height: 4),
+                    Text("Done"),
+                  ],
+                ),
+              ),
             ],
           )
+        ],
+      ),
+        ),
+    );
+  }
+
+  Future<Uint8List> _generatePdf() async {
+    final pdf = pw.Document();
+
+    final font = pw.Font.ttf(
+      await rootBundle.load("assets/fonts/Roboto-Regular.ttf"),
+    );
+
+    final party = data["party"] ?? {};
+    final items = List<Map<String, dynamic>>.from(data["items"] ?? []);
+    final business = data["business"] ?? {};
+
+    final double subtotal = (data["subtotal"] ?? 0).toDouble();
+    final double totalTax = (data["total_tax"] ?? 0).toDouble();
+    final double grandTotal = (data["grand_total"] ?? 0).toDouble();
+    final double received = (data["received_amount"] ?? 0).toDouble();
+    final double balance = (data["balance_amount"] ?? 0).toDouble();
+
+    final String status =
+    (data["status"] ?? "UNPAID").toString().toUpperCase();
+
+    pdf.addPage(
+      pw.Page(
+        build: (context) {
+          return pw.Container(
+            padding: const pw.EdgeInsets.all(16),
+            decoration: pw.BoxDecoration(border: pw.Border.all()),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+
+                // ================= HEADER =================
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(
+                      business["name"] ?? "",
+                      style: pw.TextStyle(
+                        font: font,
+                        fontSize: 16,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.Container(
+                      padding: const pw.EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: pw.BoxDecoration(
+                        border: pw.Border.all(),
+                      ),
+                      child: pw.Text(
+                        "PURCHASE",
+                        style: pw.TextStyle(
+                          font: font,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    )
+                  ],
+                ),
+
+                pw.SizedBox(height: 6),
+                pw.Text("GSTIN: ${business["gstin"] ?? ""}",
+                    style: pw.TextStyle(font: font)),
+                pw.Text(business["address"] ?? "",
+                    style: pw.TextStyle(font: font)),
+
+                pw.Divider(),
+
+                // ================= PURCHASE DETAILS =================
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text("Purchase No: ${data["id"]}",
+                        style: pw.TextStyle(font: font)),
+                    pw.Text("Date: ${_format(data["purchase_date"])}",
+                        style: pw.TextStyle(font: font)),
+                  ],
+                ),
+
+                pw.SizedBox(height: 12),
+
+                // ================= BILL FROM =================
+                pw.Text("BILL FROM",
+                    style: pw.TextStyle(
+                        font: font, fontWeight: pw.FontWeight.bold)),
+
+                pw.Text(party["party_name"] ?? "",
+                    style: pw.TextStyle(font: font)),
+                pw.Text("Mobile: ${party["contact_number"] ?? ""}",
+                    style: pw.TextStyle(font: font)),
+                pw.Text(
+                    "Place of Supply: ${data["place_of_supply"] ?? ""}",
+                    style: pw.TextStyle(font: font)),
+
+                pw.SizedBox(height: 12),
+
+                // ================= TABLE =================
+                pw.Table.fromTextArray(
+                  headers: [
+                    "No",
+                    "Item",
+                    "HSN",
+                    "Qty",
+                    "Rate",
+                    "Tax",
+                    "Total"
+                  ],
+                  data: List.generate(items.length, (i) {
+                    final e = items[i];
+                    return [
+                      "${i + 1}",
+                      e["description"],
+                      e["hsn"] ?? "",
+                      "${e["qty"]}",
+                      "₹ ${e["price"]}",
+                      "₹ ${e["gst_amount"]}",
+                      "₹ ${e["line_total"]}",
+                    ];
+                  }),
+                  headerStyle: pw.TextStyle(
+                    font: font,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                  cellStyle: pw.TextStyle(font: font),
+                ),
+
+                pw.SizedBox(height: 15),
+
+                // ================= TOTAL =================
+                pw.Align(
+                  alignment: pw.Alignment.centerRight,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text("Taxable Amount ₹ ${subtotal.toStringAsFixed(2)}",
+                          style: pw.TextStyle(font: font)),
+                      pw.Text("Tax ₹ ${totalTax.toStringAsFixed(2)}",
+                          style: pw.TextStyle(font: font)),
+
+                      pw.SizedBox(height: 5),
+
+                      pw.Text("Total Amount ₹ ${grandTotal.toStringAsFixed(2)}",
+                          style: pw.TextStyle(
+                              font: font,
+                              fontWeight: pw.FontWeight.bold)),
+
+                      pw.Text("Paid Amount ₹ ${received.toStringAsFixed(2)}",
+                          style: pw.TextStyle(font: font)),
+
+                      pw.Text("Balance ₹ ${balance.toStringAsFixed(2)}",
+                          style: pw.TextStyle(
+                              font: font,
+                              fontWeight: pw.FontWeight.bold)),
+                    ],
+                  ),
+                ),
+
+                pw.SizedBox(height: 15),
+
+                // ================= TERMS =================
+                pw.Text("Terms & Conditions",
+                    style: pw.TextStyle(
+                        font: font, fontWeight: pw.FontWeight.bold)),
+                pw.Text("1. Goods once sold will not be taken back.",
+                    style: pw.TextStyle(font: font)),
+                pw.Text("2. Subject to local jurisdiction.",
+                    style: pw.TextStyle(font: font)),
+
+                pw.SizedBox(height: 15),
+                pw.Divider(),
+
+                // ================= STATUS =================
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(
+                      party["party_name"] ?? "",
+                      style: pw.TextStyle(
+                          font: font,
+                          fontWeight: pw.FontWeight.bold),
+                    ),
+                    pw.Text(
+                      "₹ ${grandTotal.toStringAsFixed(2)}",
+                      style: pw.TextStyle(
+                          font: font,
+                          fontWeight: pw.FontWeight.bold),
+                    ),
+                  ],
+                ),
+
+                pw.SizedBox(height: 5),
+
+                pw.Text(
+                  status,
+                  style: pw.TextStyle(
+                    font: font,
+                    fontWeight: pw.FontWeight.bold,
+                    color: status == "PAID"
+                        ? PdfColor.fromInt(0xFF008000)
+                        : PdfColor.fromInt(0xFFFF0000),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+
+    return pdf.save();
+  }
+  void _printPurchase(BuildContext context) async {
+    final pdfData = await _generatePdf();
+    await Printing.layoutPdf(onLayout: (_) => pdfData);
+  }
+
+  Future<void> _downloadPurchase(BuildContext context) async {
+    final pdfData = await _generatePdf();
+
+    final dir = await getTemporaryDirectory();
+    final file = File("${dir.path}/purchase.pdf");
+
+    await file.writeAsBytes(pdfData);
+
+    await MediaStore().saveFile(
+      tempFilePath: file.path,
+      dirType: DirType.download,
+      dirName: DirName.download,
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Saved to Downloads")),
+    );
+  }
+
+  void _sharePurchase(BuildContext context) async {
+    final pdfData = await _generatePdf();
+
+    final dir = await getTemporaryDirectory();
+    final file = File("${dir.path}/purchase.pdf");
+
+    await file.writeAsBytes(pdfData);
+
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      text: "Purchase - ₹${data["grand_total"]}",
+    );
+  }
+
+  Widget bottomBtn(
+      IconData icon,
+      String text, {
+        required VoidCallback onTap,
+      }) {
+    return InkWell(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Icon(icon, size: 28),
+          const SizedBox(height: 4),
+          Text(text),
         ],
       ),
     );

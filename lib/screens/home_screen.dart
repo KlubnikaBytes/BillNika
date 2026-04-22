@@ -23,7 +23,7 @@ import 'create_purchase_screen.dart'; // ✅ ADD THIS
 
 
 
-const String baseUrl = 'http://192.168.1.11:8000/api';
+const String baseUrl = 'http://192.168.1.12:8000/api';
 
 // const String baseUrl = "http://10.0.2.2:8000/api";
 
@@ -170,36 +170,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
 
-  // Future<void> fetchHomeTransactions() async {
-  //   try {
-  //     final prefs = await SharedPreferences.getInstance();
-  //     final token = prefs.getString('token') ?? "";
-  //
-  //     String url = "$baseUrl/dashboard/transactions";
-  //
-  //     if (fromDate != null && toDate != null) {
-  //       url +=
-  //       "?from=${fromDate!.toIso8601String()}&to=${toDate!.toIso8601String()}";
-  //     }
-  //
-  //     final res = await http.get(
-  //       Uri.parse(url),
-  //       headers: {
-  //         "Authorization": "Bearer $token",
-  //         "Accept": "application/json",
-  //       },
-  //     );
-  //
-  //     final decoded = jsonDecode(res.body);
-  //
-  //     setState(() {
-  //       transactions = decoded['transactions'] ?? [];
-  //       loadingTx = false;
-  //     });
-  //   } catch (e) {
-  //     loadingTx = false;
-  //   }
-  // }
 
   Future<void> fetchHomeTransactions({bool loadMore = false}) async {
     if (isLoadingMore) return;
@@ -668,8 +638,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
 
-
-
   @override
   void initState() {
     super.initState();
@@ -718,16 +686,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
             const Icon(Icons.keyboard_arrow_down, color: Colors.black),
             const Spacer(),
-            // // Icon(Icons.calculate_outlined, color: primary, size: 26),
-            // GestureDetector(
-            //   onTap: () {
-            //     Navigator.push(
-            //       context,
-            //       MaterialPageRoute(builder: (_) => const CalculatorScreen()),
-            //     );
-            //   },
-            //   child: Icon(Icons.calculate_outlined, color: primary, size: 26),
-            // ),
+
 
             GestureDetector(
               onTap: () {
@@ -960,11 +919,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   )
                       :
-                  // Column(
-                  //   children: transactions
-                  //       .map((tx) => _buildTransactionCard(tx))
-                  //       .toList(),
-                  // ),
+
                   SizedBox(
                     height: 400, // or adjust
                     child: ListView.builder(
@@ -1017,15 +972,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                     ),
                     const SizedBox(width: 12),
-                    // Container(
-                    //   padding: const EdgeInsets.all(16),
-                    //   decoration: const BoxDecoration(
-                    //     color: Colors.green,
-                    //     shape: BoxShape.circle,
-                    //   ),
-                    //   child:
-                    //   const Icon(Icons.add, color: Colors.white, size: 28),
-                    // ),
+
 
                     GestureDetector(
                       onTap: _openAddMenu, // ✅ IMPORTANT
@@ -1249,16 +1196,40 @@ class _HomeScreenState extends State<HomeScreen> {
 
 
   Widget _buildTransactionCard(Map tx) {
-    final bool isInvoice = tx['type'] == 'invoice';
+    // final bool isInvoice = tx['type'] == 'invoice';
+    final String type = tx['type'];
+
+    final bool isInvoice = type == 'invoice';
+    final bool isPurchase = type == 'purchase';
+    final bool isPayment = type == 'payment';
 
     final String title = tx['party_name'];
     final String subTitle = isInvoice
         ? "Invoice #${tx['number']}"
+        : isPurchase
+        ? "Purchase #${tx['number']}"   // ✅ ADD THIS
         : "Received Payment #${tx['number']}";
 
-    final String dateLine = isInvoice
-        ? "${formatDate(tx['date'])} • ${dueText(tx['due_date'])}"
-        : formatDate(tx['date']);
+    // final String dateLine = isInvoice
+    //     ? "${formatDate(tx['date'])} • ${dueText(tx['due_date'])}"
+    //     : formatDate(tx['date']);
+    String dateLine;
+
+    if (!isInvoice) {
+      dateLine = formatDate(tx['date']);
+    } else {
+      final status = (tx['status'] ?? '').toString().toLowerCase();
+
+      // ✅ DO NOT SHOW DUE IF PAID
+      if (status == 'paid') {
+        dateLine = formatDate(tx['date']);
+      } else {
+        final due = dueText(tx['due_date']);
+        dateLine = due.isEmpty
+            ? formatDate(tx['date'])
+            : "${formatDate(tx['date'])} • $due";
+      }
+    }
 
     final double grandTotal =
         double.tryParse(tx['grand_total']?.toString() ?? '0') ?? 0;
@@ -1266,11 +1237,14 @@ class _HomeScreenState extends State<HomeScreen> {
     final double balance =
         double.tryParse(tx['balance_amount']?.toString() ?? '0') ?? 0;
 
-    final double rightAmount = isInvoice
+    // final double rightAmount = isInvoice
+    //     ? grandTotal
+    //     : double.tryParse(tx['amount']?.toString() ?? '0') ?? 0;
+    final double rightAmount = (isInvoice || isPurchase)
         ? grandTotal
         : double.tryParse(tx['amount']?.toString() ?? '0') ?? 0;
 
-    final String status = isInvoice
+    final String status = (isInvoice || isPurchase)
         ? (tx['status'] ?? 'unpaid').toString().toLowerCase()
         : 'received';
 
@@ -1279,7 +1253,24 @@ class _HomeScreenState extends State<HomeScreen> {
     String badgeText;
     bool showBalance = false;
 
-    if (!isInvoice) {
+    // if (!isInvoice) {
+    //   badgeColor = Colors.green.shade100;
+    //   badgeText = "RECEIVED";
+    // } else if (status == 'paid') {
+    //   badgeColor = Colors.green.shade100;
+    //   badgeText = "PAID";
+    // } else if (status == 'partial') {
+    //   badgeColor = Colors.orange.shade100;
+    //   badgeText = "PARTIAL";
+    //   showBalance = balance != grandTotal;
+    // } else {
+    //   badgeColor = Colors.red.shade100;
+    //   badgeText = "UNPAID";
+    //   showBalance = balance != grandTotal;
+    // }
+
+    if (isPayment) {
+      // Only payments show RECEIVED
       badgeColor = Colors.green.shade100;
       badgeText = "RECEIVED";
     } else if (status == 'paid') {
@@ -1320,17 +1311,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(subTitle, style: const TextStyle(color: Colors.blue)),
                 const SizedBox(height: 2),
                 Text(dateLine, style: const TextStyle(color: Colors.black54)),
-                // const SizedBox(height: 10),
-                // if (isInvoice)
-                //   Row(
-                //     children: const [
-                //       Text("₹ Record Manually",
-                //           style: TextStyle(color: Colors.blue)),
-                //       SizedBox(width: 6),
-                //       Icon(Icons.arrow_forward_ios,
-                //           size: 14, color: Colors.blue),
-                //     ],
-                //   ),
 
                 const SizedBox(height: 10),
 
@@ -1634,50 +1614,5 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 
-// class StrawberryPatternPainter extends CustomPainter {
-//   @override
-//   void paint(Canvas canvas, Size size) {
-//     // 🍓 1️⃣ Soft strawberry-tinted background
-//     final bgPaint = Paint()
-//       ..color = const Color(0xFFFFF3F3); // warmer & richer than FFF5F5
-//
-//     canvas.drawRect(
-//       Rect.fromLTWH(0, 0, size.width, size.height),
-//       bgPaint,
-//     );
-//
-//     // 🍓 2️⃣ Strawberry watermark pattern
-//     const double gap = 64; // more breathing space
-//     final textPainter = TextPainter(
-//       textDirection: TextDirection.ltr,
-//     );
-//
-//     for (double x = -20; x < size.width + gap; x += gap) {
-//       for (double y = -20; y < size.height + gap; y += gap) {
-//         textPainter.text = const TextSpan(
-//           text: '🍓',
-//           style: TextStyle(
-//             fontSize: 16,                 // 👈 more visible
-//             color: Color(0x33E53935),     // 👈 soft strawberry red
-//           ),
-//         );
-//
-//         textPainter.layout();
-//
-//         // Slight diagonal offset for premium look
-//         textPainter.paint(
-//           canvas,
-//           Offset(
-//             x + (y % (gap * 2) == 0 ? 10 : 0),
-//             y,
-//           ),
-//         );
-//       }
-//     }
-//   }
-//
-//   @override
-//   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-// }
 
 

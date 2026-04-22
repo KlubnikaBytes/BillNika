@@ -4,7 +4,7 @@ import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
-const String baseUrl = 'http://192.168.1.11:8000/api';
+const String baseUrl = 'http://192.168.1.12:8000/api';
 
 class ContactPickerSheet extends StatefulWidget {
   final String type;

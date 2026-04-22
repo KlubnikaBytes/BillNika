@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const String baseUrl = 'http://192.168.1.11:8000/api';
+const String baseUrl = 'http://192.168.1.12:8000/api';
 
 class ScanUploadScreen extends StatefulWidget {
   const ScanUploadScreen({super.key});

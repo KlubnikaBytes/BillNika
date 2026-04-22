@@ -8,7 +8,7 @@ import 'create_invoice_screen.dart';
 import 'package:flutter_project/widgets/app_background.dart';
 
 
-const String baseUrl = 'http://192.168.1.11:8000/api';
+const String baseUrl = 'http://192.168.1.12:8000/api';
 // const String baseUrl = "http://10.0.2.2:8000/api";
 
 
@@ -706,7 +706,47 @@ class _PartyDetailScreenState extends State<PartyDetailScreen>
             return Card(
               child: ListTile(
                 title: Text("Invoice #${tx['number']}"),
-                subtitle: Text(tx['date']),
+                // subtitle: Text(
+                //   _fmt(DateTime.parse(tx['date'])),
+                // ),
+                subtitle: Builder(
+                  builder: (_) {
+                    final date = DateTime.parse(tx['date']);
+                    final dueText = getDueText(tx['due_date'], tx['status']);
+
+                    Color dueColor = Colors.black54;
+
+                    if (dueText.contains("overdue")) {
+                      dueColor = Colors.red;
+                    } else if (dueText.contains("Due today")) {
+                      dueColor = Colors.orange;
+                    } else if (dueText.contains("Due in")) {
+                      dueColor = Colors.deepPurple;
+                    }
+
+                    return Row(
+                      children: [
+                        Text(
+                          _fmt(date),
+                          style: const TextStyle(color: Colors.black54),
+                        ),
+
+                        if (dueText.isNotEmpty) ...[
+                          const SizedBox(width: 6),
+                          const Text("•"),
+                          const SizedBox(width: 6),
+                          Text(
+                            dueText,
+                            style: TextStyle(
+                              color: dueColor,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ],
+                    );
+                  },
+                ),
                 trailing: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -738,7 +778,9 @@ class _PartyDetailScreenState extends State<PartyDetailScreen>
             color: Colors.grey.shade200,
             child: ListTile(
               title: Text("Received Payment #${tx['number']}"),
-              subtitle: Text(tx['date']),
+              subtitle: Text(
+                _fmt(DateTime.parse(tx['date'])),
+              ),
               trailing: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -864,13 +906,26 @@ class _PartyDetailScreenState extends State<PartyDetailScreen>
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
+      // builder: (_) {
+      //   return Padding(
+      //     padding: const EdgeInsets.all(16),
+      //     child: Column(
+      //       mainAxisSize: MainAxisSize.min,
+      //       crossAxisAlignment: CrossAxisAlignment.start,
+      //       children: [
       builder: (_) {
-        return Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        return SafeArea(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                16,
+                16,
+                MediaQuery.of(context).viewPadding.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               // HEADER
               Row(
                 children: [
@@ -950,6 +1005,7 @@ class _PartyDetailScreenState extends State<PartyDetailScreen>
               ),
             ],
           ),
+            ),
         );
       },
     );
@@ -982,7 +1038,22 @@ class _PartyDetailScreenState extends State<PartyDetailScreen>
     }
   }
 
+  String getDueText(String? dueDate, String status) {
+    if (status == 'paid' || dueDate == null) return "";
 
+    final due = DateTime.parse(dueDate);
+    final now = DateTime.now();
+
+    final diff = due.difference(now).inDays;
+
+    if (diff < 0) {
+      return "${diff.abs()} day(s) overdue";
+    } else if (diff == 0) {
+      return "Due today";
+    } else {
+      return "Due in $diff day(s)";
+    }
+  }
 
 
   String _fmt(DateTime d) {

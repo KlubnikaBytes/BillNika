@@ -13,7 +13,7 @@ import 'package:flutter_project/widgets/app_background.dart';
 
 
 
-const String baseUrl = 'http://192.168.1.11:8000/api';
+const String baseUrl = 'http://192.168.1.12:8000/api';
 // const String baseUrl = "http://10.0.2.2:8000/api";
 
 
@@ -386,7 +386,17 @@ class _ItemsScreenState extends State<ItemsScreen> {
       );
     }
 
-    return Scaffold(
+    // return Scaffold(
+    return WillPopScope(
+        onWillPop: () async {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+                (route) => false,
+          );
+          return false; // ⛔ stop default back
+        },
+        child: Scaffold(
 
       // backgroundColor: const Color(0xFFF6F7FB),
 
@@ -768,6 +778,7 @@ class _ItemsScreenState extends State<ItemsScreen> {
           ),
         ],
       ),
+        ),
 
     );
   }

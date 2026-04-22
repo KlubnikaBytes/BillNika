@@ -1,5 +1,3 @@
-
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:io';
@@ -9,6 +7,10 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter/services.dart';
+import 'package:media_store_plus/media_store_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:pdf/pdf.dart';
 
 // ✅ ADD THIS IMPORT
 import 'home_screen.dart';
@@ -45,7 +47,17 @@ class InvoicePreviewScreen extends StatelessWidget {
 
 
 
-    return Scaffold(
+    // return Scaffold(
+    return WillPopScope(
+        onWillPop: () async {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+                (route) => false,
+          );
+          return false;
+        },
+        child: Scaffold(
       backgroundColor: Colors.white,
 
       appBar: AppBar(
@@ -53,9 +65,11 @@ class InvoicePreviewScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
         title: const Text("Invoice Created"),
+        automaticallyImplyLeading: false,
         // ✅ UPDATED BACK BUTTON
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+
           onPressed: () {
             Navigator.pushAndRemoveUntil(
               context,
@@ -78,15 +92,6 @@ class InvoicePreviewScreen extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-
-                // BUSINESS NAME
-                // Text(
-                //   "CENTRAL WARE HOUSING CORP. LTD.",
-                //   style: const TextStyle(
-                //     fontSize: 18,
-                //     fontWeight: FontWeight.bold,
-                //   ),
-                // ),
 
                 Text(
                   business["industry"] ?? "",
@@ -319,6 +324,7 @@ class InvoicePreviewScreen extends StatelessWidget {
 
         ),
       ),
+        ),
 
 
     );
@@ -328,48 +334,322 @@ class InvoicePreviewScreen extends StatelessWidget {
 // PDF GENERATOR (ADD HERE)
 // ===============================
 
+  // Future<Uint8List> _generatePdf() async {
+  //   final pdf = pw.Document();
+  //
+  //   // ✅ LOAD FONT
+  //   final font = pw.Font.ttf(
+  //     await rootBundle.load("assets/fonts/Roboto-Regular.ttf"),
+  //   );
+  //
+  //   pdf.addPage(
+  //     pw.Page(
+  //       build: (context) {
+  //         return pw.Column(
+  //           crossAxisAlignment: pw.CrossAxisAlignment.start,
+  //           children: [
+  //             pw.Text(
+  //               "INVOICE",
+  //               style: pw.TextStyle(
+  //                 fontSize: 22,
+  //                 fontWeight: pw.FontWeight.bold,
+  //               ),
+  //             ),
+  //             pw.SizedBox(height: 10),
+  //
+  //             pw.Text("Party: ${invoiceData["party"]["party_name"]}"),
+  //             pw.SizedBox(height: 10),
+  //
+  //             pw.Table.fromTextArray(
+  //               headers: ["Item", "Qty", "Price", "Total"],
+  //               data: (invoiceData["items"] as List).map((item) {
+  //                 return [
+  //                   item["description"],
+  //                   item["qty"].toString(),
+  //                   item["price"].toString(),
+  //                   item["line_total"].toString(),
+  //                 ];
+  //               }).toList(),
+  //             ),
+  //
+  //             pw.SizedBox(height: 20),
+  //             pw.Text(
+  //               "Grand Total: ₹ ${invoiceData["grand_total"]}",
+  //               style: pw.TextStyle(
+  //                 fontSize: 16,
+  //                 fontWeight: pw.FontWeight.bold,
+  //               ),
+  //             ),
+  //           ],
+  //         );
+  //       },
+  //     ),
+  //   );
+  //
+  //   return pdf.save();
+  // }
+
+  // Future<Uint8List> _generatePdf() async {
+  //   final pdf = pw.Document();
+  //
+  //   // ✅ LOAD FONT
+  //   final font = pw.Font.ttf(
+  //     await rootBundle.load("assets/fonts/Roboto-Regular.ttf"),
+  //   );
+  //
+  //   pdf.addPage(
+  //     pw.Page(
+  //       build: (context) {
+  //         return pw.Column(
+  //           crossAxisAlignment: pw.CrossAxisAlignment.start,
+  //           children: [
+  //
+  //             // 🔥 TITLE
+  //             pw.Text(
+  //               "INVOICE",
+  //               style: pw.TextStyle(
+  //                 font: font, // ✅ IMPORTANT
+  //                 fontSize: 22,
+  //                 fontWeight: pw.FontWeight.bold,
+  //               ),
+  //             ),
+  //
+  //             pw.SizedBox(height: 10),
+  //
+  //             // 🔥 PARTY
+  //             pw.Text(
+  //               "Party: ${invoiceData["party"]["party_name"]}",
+  //               style: pw.TextStyle(font: font), // ✅ IMPORTANT
+  //             ),
+  //
+  //             pw.SizedBox(height: 10),
+  //
+  //             // 🔥 TABLE
+  //             pw.Table.fromTextArray(
+  //               headers: ["Item", "Qty", "Price", "Total"],
+  //               data: (invoiceData["items"] as List).map((item) {
+  //                 return [
+  //                   item["description"],
+  //                   item["qty"].toString(),
+  //                   "₹ ${item["price"]}",        // ✅ ₹ now works
+  //                   "₹ ${item["line_total"]}",
+  //                 ];
+  //               }).toList(),
+  //
+  //               // ✅ VERY IMPORTANT
+  //               headerStyle: pw.TextStyle(font: font),
+  //               cellStyle: pw.TextStyle(font: font),
+  //             ),
+  //
+  //             pw.SizedBox(height: 20),
+  //
+  //             // 🔥 TOTAL
+  //             pw.Text(
+  //               "Grand Total: ₹ ${invoiceData["grand_total"]}",
+  //               style: pw.TextStyle(
+  //                 font: font, // ✅ IMPORTANT
+  //                 fontSize: 16,
+  //                 fontWeight: pw.FontWeight.bold,
+  //               ),
+  //             ),
+  //           ],
+  //         );
+  //       },
+  //     ),
+  //   );
+  //
+  //   return pdf.save();
+  // }
+
   Future<Uint8List> _generatePdf() async {
     final pdf = pw.Document();
+
+    final font = pw.Font.ttf(
+      await rootBundle.load("assets/fonts/Roboto-Regular.ttf"),
+    );
+
+    final party = invoiceData["party"] ?? {};
+    final items = List<Map<String, dynamic>>.from(invoiceData["items"] ?? []);
+    final business = invoiceData["business"] ?? {};
+
+    final double taxableAmount =
+    (invoiceData["subtotal"] as num).toDouble();
+
+    final double totalTax =
+    (invoiceData["total_tax"] as num).toDouble();
+
+    final double cgst = totalTax / 2;
+    final double sgst = totalTax / 2;
+
+    final String status =
+    (invoiceData["status"] ?? "unpaid").toString().toUpperCase();
 
     pdf.addPage(
       pw.Page(
         build: (context) {
-          return pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(
-                "INVOICE",
-                style: pw.TextStyle(
-                  fontSize: 22,
-                  fontWeight: pw.FontWeight.bold,
+          return pw.Container(
+            padding: const pw.EdgeInsets.all(16),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(),
+            ),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+
+                // 🔥 BUSINESS
+                pw.Text(
+                  business["industry"] ?? "",
+                  style: pw.TextStyle(
+                    font: font,
+                    fontSize: 18,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
                 ),
-              ),
-              pw.SizedBox(height: 10),
 
-              pw.Text("Party: ${invoiceData["party"]["party_name"]}"),
-              pw.SizedBox(height: 10),
+                if ((business["gstin"] ?? "").toString().isNotEmpty)
+                  pw.Text("GSTIN ${business["gstin"]}",
+                      style: pw.TextStyle(font: font)),
 
-              pw.Table.fromTextArray(
-                headers: ["Item", "Qty", "Price", "Total"],
-                data: (invoiceData["items"] as List).map((item) {
-                  return [
-                    item["description"],
-                    item["qty"].toString(),
-                    item["price"].toString(),
-                    item["line_total"].toString(),
-                  ];
-                }).toList(),
-              ),
+                pw.Text("GSTIN ${party["gst_number"] ?? ""}",
+                    style: pw.TextStyle(font: font)),
 
-              pw.SizedBox(height: 20),
-              pw.Text(
-                "Grand Total: ₹ ${invoiceData["grand_total"]}",
-                style: pw.TextStyle(
-                  fontSize: 16,
-                  fontWeight: pw.FontWeight.bold,
+                pw.SizedBox(height: 10),
+
+                // 🔥 INVOICE DETAILS
+                pw.Text("Invoice No: ${invoiceData["invoice_number"]}",
+                    style: pw.TextStyle(font: font)),
+                pw.Text("Invoice Date: ${_format(invoiceData["invoice_date"])}",
+                    style: pw.TextStyle(font: font)),
+                pw.Text("Due Date: ${_format(invoiceData["due_date"])}",
+                    style: pw.TextStyle(font: font)),
+
+                pw.SizedBox(height: 10),
+                pw.Divider(),
+
+                // 🔥 BILL TO
+                pw.Text("Bill To",
+                    style: pw.TextStyle(
+                        font: font, fontWeight: pw.FontWeight.bold)),
+
+                pw.Text(party["party_name"] ?? "",
+                    style: pw.TextStyle(font: font)),
+
+                pw.Text(
+                    "${party["billing_city"] ?? ""}, ${party["billing_state"] ?? ""} - ${party["billing_pincode"] ?? ""}",
+                    style: pw.TextStyle(font: font)),
+
+                pw.Text("Mobile: ${party["contact_number"] ?? ""}",
+                    style: pw.TextStyle(font: font)),
+
+                pw.SizedBox(height: 10),
+
+                // 🔥 ITEMS TABLE
+                pw.Table.fromTextArray(
+                  headers: ["No", "Item", "HSN", "Qty", "Rate", "Tax", "Total"],
+                  data: List.generate(items.length, (i) {
+                    final it = items[i];
+                    return [
+                      "${i + 1}",
+                      it["description"],
+                      it["hsn"] ?? "",
+                      "${it["qty"]}",
+                      "₹ ${it["price"]}",
+                      "₹ ${it["gst_amount"]} (${it["gst_percent"]}%)",
+                      "₹ ${it["line_total"]}",
+                    ];
+                  }),
+                  headerStyle: pw.TextStyle(
+                    font: font,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                  cellStyle: pw.TextStyle(font: font),
                 ),
-              ),
-            ],
+
+                pw.SizedBox(height: 10),
+                pw.Divider(),
+
+                // 🔥 TOTALS
+                pw.Align(
+                  alignment: pw.Alignment.centerRight,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text("Taxable Amount ₹ ${taxableAmount.toStringAsFixed(2)}",
+                          style: pw.TextStyle(font: font)),
+                      pw.Text("CGST ₹ ${cgst.toStringAsFixed(2)}",
+                          style: pw.TextStyle(font: font)),
+                      pw.Text("SGST ₹ ${sgst.toStringAsFixed(2)}",
+                          style: pw.TextStyle(font: font)),
+
+                      pw.SizedBox(height: 5),
+
+                      pw.Text(
+                        "Total Amount ₹ ${invoiceData["grand_total"]}",
+                        style: pw.TextStyle(
+                          font: font,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+
+                      pw.Text(
+                        "Received ₹ ${invoiceData["received_amount"] ?? 0}",
+                        style: pw.TextStyle(font: font),
+                      ),
+
+                      pw.Text(
+                        "Balance ₹ ${invoiceData["balance_amount"] ?? 0}",
+                        style: pw.TextStyle(
+                          font: font,
+                          fontWeight: pw.FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // ✅ 🔥 STATUS SECTION (NEW)
+                pw.SizedBox(height: 20),
+                pw.Divider(),
+
+                pw.Row(
+                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                  children: [
+                    pw.Text(
+                      party["party_name"] ?? "",
+                      style: pw.TextStyle(
+                        font: font,
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                    pw.Text(
+                      "₹ ${invoiceData["grand_total"]}",
+                      style: pw.TextStyle(
+                        font: font,
+                        fontSize: 14,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+
+                pw.SizedBox(height: 5),
+
+                pw.Text(
+                  status,
+                  style: pw.TextStyle(
+                    font: font,
+                    fontSize: 12,
+                    fontWeight: pw.FontWeight.bold,
+                    color: status == "PAID"
+                        ? PdfColor.fromInt(0xFF008000)
+                        : status == "PARTIAL"
+                        ? PdfColor.fromInt(0xFFFFA500)
+                        : PdfColor.fromInt(0xFFFF0000),
+                  ),
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -385,9 +665,60 @@ class InvoicePreviewScreen extends StatelessWidget {
   }
 
 
-  void _downloadInvoice(BuildContext context) async {
+
+  Future<void> _downloadInvoice(BuildContext context) async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator()),
+    );
+
     final pdfData = await _generatePdf();
-    final dir = await getApplicationDocumentsDirectory();
+
+    Navigator.pop(context);
+
+    final tempPath = await _createTempFile(pdfData);
+
+    await MediaStore().saveFile(
+      tempFilePath: tempPath,
+      dirType: DirType.download,
+      dirName: DirName.download,
+    );
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Saved to Downloads")),
+    );
+  }
+
+  Future<String> _createTempFile(Uint8List data) async {
+    final dir = await getTemporaryDirectory();
+
+    final file = File(
+      "${dir.path}/invoice_${DateTime.now().millisecondsSinceEpoch}.pdf",
+    );
+
+    await file.writeAsBytes(data);
+
+    return file.path;
+  }
+
+
+  // void _shareInvoice(BuildContext context) async {
+  //   final pdfData = await _generatePdf();
+  //   final dir = await getTemporaryDirectory();
+  //
+  //   final file = File("${dir.path}/invoice.pdf");
+  //   await file.writeAsBytes(pdfData);
+  //
+  //   await Share.shareXFiles(
+  //     [XFile(file.path)],
+  //     text: "Invoice",
+  //   );
+  // }
+
+  void _shareInvoice(BuildContext context) async {
+    final pdfData = await _generatePdf();
+    final dir = await getTemporaryDirectory();
 
     final file = File(
       "${dir.path}/invoice_${DateTime.now().millisecondsSinceEpoch}.pdf",
@@ -395,21 +726,9 @@ class InvoicePreviewScreen extends StatelessWidget {
 
     await file.writeAsBytes(pdfData);
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Saved to ${file.path}")),
-    );
-  }
-
-  void _shareInvoice(BuildContext context) async {
-    final pdfData = await _generatePdf();
-    final dir = await getTemporaryDirectory();
-
-    final file = File("${dir.path}/invoice.pdf");
-    await file.writeAsBytes(pdfData);
-
     await Share.shareXFiles(
       [XFile(file.path)],
-      text: "Invoice",
+      text: "Invoice - ₹${invoiceData["grand_total"]}",
     );
   }
 

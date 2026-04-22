@@ -7,7 +7,7 @@ import 'package:flutter_contacts/flutter_contacts.dart'; // ✅ ADDED
 import '../models/party_model.dart';
 import 'party_flow_screens.dart';
 
-const String baseUrl = 'http://192.168.1.11:8000/api';
+const String baseUrl = 'http://192.168.1.12:8000/api';
 
 class SelectPartySheet extends StatefulWidget {
   final Color primary;

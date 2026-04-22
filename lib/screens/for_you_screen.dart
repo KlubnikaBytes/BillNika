@@ -49,7 +49,17 @@ class ForYouScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    // return Scaffold(
+    return WillPopScope(
+        onWillPop: () async {
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(builder: (_) => const HomeScreen()),
+                (route) => false,
+          );
+          return false;
+        },
+        child: Scaffold(
       // backgroundColor: const Color(0xFFF6F7FB),
 
       // ================= APP BAR =================
@@ -190,6 +200,7 @@ class ForYouScreen extends StatelessWidget {
           ),
         ],
       ),
+        ),
 
     );
   }
